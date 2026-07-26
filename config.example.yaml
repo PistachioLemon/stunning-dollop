@@ -1,0 +1,62 @@
+app:
+  name: Nova
+  host: 127.0.0.1
+  port: 8787
+  timezone: America/Los_Angeles
+  simulation: true
+  data_dir: ./data
+
+profile:
+  display_name: Mom
+  emergency_pin: "2468"
+  medication_grace_minutes: 30
+
+safety:
+  countdown_seconds: 15
+  require_confirmation: true
+  outbound_emergency_enabled: false
+  emergency_provider: disabled
+  trusted_contacts: []
+
+presence:
+  enabled: true
+  camera_index: 0
+  dim_after_seconds: 90
+  sleep_after_seconds: 300
+
+voice:
+  enabled: false
+  wake_phrase: hey nova
+  whisper_model: tiny.en
+  piper_command: piper
+
+# Runs locally on the PC through llama.cpp. Keep disabled until a GGUF model is
+# installed at model_path and llama-server is listening at server_url.
+local_llm:
+  enabled: false
+  server_url: http://127.0.0.1:8080
+  model_path: ./models/nova-assistant.gguf
+  timeout_seconds: 45
+  max_tokens: 256
+  temperature: 0.3
+  system_prompt: >-
+    You are Nova, a concise offline home assistant. Never claim that an
+    emergency call, door unlock, medication record, message, or device action
+    occurred unless Nova's verified tools report that it occurred.
+
+home_assistant:
+  enabled: false
+  base_url: http://homeassistant.local:8123
+  token_env: NOVA_HA_TOKEN
+
+package_locker:
+  enabled: true
+  simulation: true
+  operator_pin: "8642"
+  gpio_pin: 17
+  active_high: true
+  unlock_seconds: 20
+  max_unlock_seconds: 60
+  require_courier_pin: true
+  minimum_verification_confidence: 0.80
+  auto_unlock_verified_delivery: true
