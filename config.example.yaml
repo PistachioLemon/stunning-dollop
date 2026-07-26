@@ -60,3 +60,12 @@ package_locker:
   require_courier_pin: true
   minimum_verification_confidence: 0.80
   auto_unlock_verified_delivery: true
+
+# Camera credentials belong in Home Assistant or environment-managed adapters,
+# never in this file or Git. Simulation mode contacts no real camera.
+security_cameras:
+  enabled: true
+  simulation: true
+  recording_policy: events_only
+  retention_days: 7
+  minimum_event_confidence: 0.70
