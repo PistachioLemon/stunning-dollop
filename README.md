@@ -13,6 +13,8 @@ It is created by **LaBrone Gaines** and distributed under Apache-2.0.
 - Package verification with one-time QR or Code 128 access credentials
 - Timed simulated locker unlock and automatic relock
 - Home Assistant bridge for supported smart-home devices
+- Home Security Cameras module with enrollment, privacy mode, event logging,
+  safe preview simulation, and Home Assistant/RTSP/ONVIF adapter points
 - Browser/desktop microphone, camera, QR scanner, Bluetooth, and network-device UI
 - Optional private GGUF conversation model through `llama.cpp`
 - Safe Mode that forces all locker and home actions into simulation
@@ -33,6 +35,23 @@ Requirements: Windows 10/11 and Python 3.11 or newer.
 
 For a consequence-free test, use `Start-Nova-Safe-Mode.bat`. Nova binds only to
 `127.0.0.1`, so its API is not exposed to the local network by default.
+
+## Protected sandbox
+
+Double-click `Start-Nova-Protected-Sandbox.bat` to launch an isolated test
+environment at `http://127.0.0.1:8788`.
+
+The protected sandbox:
+
+- binds only to the local PC
+- forces global, package-locker, and security-camera simulation
+- disables Home Assistant, presence-camera access, voice, and outbound emergency actions
+- uses `sandbox-data/nova.db` instead of the normal Nova database
+- keeps local GGUF inference disabled by default
+
+Run `Reset-Nova-Protected-Sandbox.ps1` to erase only the sandbox database and
+start fresh. Close Nova before resetting. The reset script never touches the
+normal `data/` directory.
 
 ## Browser-only option
 
@@ -71,6 +90,8 @@ they are large and carry their own license terms.
 - Bluetooth discovery depends on Web Bluetooth support and always requires a
   user gesture and operating-system permission.
 - Camera and microphone access require explicit Windows/WebView permission.
+- Camera passwords and stream credentials stay outside Nova's repository.
+  Nova stores camera metadata and events; authenticated adapters handle streams.
 - ESP32 nodes can connect through Home Assistant or a local MQTT integration.
 - Package-locker hardware requires a separate authenticated controller. PC
   Edition never tries to drive Raspberry Pi GPIO.
