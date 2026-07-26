@@ -121,3 +121,45 @@ def test_package_locker_manual_authorization(client):
     )
     assert locked.status_code == 200
     assert locked.json()["state"] == "locked"
+
+
+def test_security_camera_simulation_and_privacy(client):
+    created = client.post(
+        "/api/security-cameras",
+        json={
+            "name": "Front Door",
+            "kind": "doorbell",
+            "room": "Entry",
+            "connection": "simulation",
+        },
+    )
+    assert created.status_code == 201
+    camera_id = created.json()["id"]
+    preview = client.get(f"/api/security-cameras/{camera_id}/preview")
+    assert preview.status_code == 200
+    assert preview.json()["mode"] == "simulation"
+    event = client.post(
+        f"/api/security-cameras/{camera_id}/events",
+        json={"event_type": "person", "confidence": 0.95, "description": "Test person"},
+    )
+    assert event.status_code == 201
+    privacy = client.post("/api/security-cameras/privacy", json={"enabled": True})
+    assert privacy.status_code == 200
+    assert privacy.json()["privacy_mode"] is True
+    blocked = client.get(f"/api/security-cameras/{camera_id}/preview")
+    assert blocked.status_code == 403
+
+
+def test_protected_sandbox_configuration():
+    from pathlib import Path
+
+    from nova.config import load_config
+
+    config = load_config(Path(__file__).resolve().parent.parent / "config.sandbox.yaml")
+    assert config["app"]["host"] == "127.0.0.1"
+    assert config["app"]["simulation"] is True
+    assert config["app"]["data_dir"] == "./sandbox-data"
+    assert config["home_assistant"]["enabled"] is False
+    assert config["safety"]["outbound_emergency_enabled"] is False
+    assert config["package_locker"]["simulation"] is True
+    assert config["security_cameras"]["simulation"] is True
