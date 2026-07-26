@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Nova Home AI</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">REQUANTAI HOME</p>
+      <h1>Good day, <span id="person">Mom</span>.</h1>
+      <p id="clock">Nova is getting ready…</p>
+    </div>
+    <div class="status"><span></span> NOVA ONLINE</div>
+  </header>
+
+  <main>
+    <section class="hero card">
+      <div class="orb">N</div>
+      <div>
+        <h2>What can I help with?</h2>
+        <p id="reply">Tap a card or type a request. I’m right here.</p>
+        <div class="chat-row">
+          <input id="chat" aria-label="Ask Nova" placeholder="Ask Nova…">
+          <button id="send">Ask</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <button class="tile medication" id="medicationBtn">
+        <span class="icon">✚</span><strong>Medication</strong><small id="medStatus">View today’s schedule</small>
+      </button>
+      <button class="tile" id="notesBtn">
+        <span class="icon">✎</span><strong>Family Notes</strong><small>Save a message or memory</small>
+      </button>
+      <button class="tile" id="homeBtn">
+        <span class="icon">⌂</span><strong>My Home</strong><small>Lights, climate, and scenes</small>
+      </button>
+      <button class="tile" id="checkinBtn">
+        <span class="icon">♥</span><strong>Daily Check-In</strong><small>Tell Nova how you feel</small>
+      </button>
+      <button class="tile package" id="packageBtn">
+        <span class="icon">▣</span><strong>Package Locker</strong><small id="lockerStatus">Checking secure locker…</small>
+      </button>
+    </section>
+
+    <button class="sos" id="sosBtn"><span>SOS</span><small>Press for emergency help</small></button>
+  </main>
+
+  <dialog id="modal">
+    <button class="close" id="closeModal" aria-label="Close">×</button>
+    <div id="modalContent"></div>
+  </dialog>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>
