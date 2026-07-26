@@ -71,6 +71,13 @@ DEFAULTS: dict[str, Any] = {
         "minimum_verification_confidence": 0.80,
         "auto_unlock_verified_delivery": True,
     },
+    "security_cameras": {
+        "enabled": True,
+        "simulation": True,
+        "recording_policy": "events_only",
+        "retention_days": 7,
+        "minimum_event_confidence": 0.70,
+    },
 }
 
 
@@ -133,3 +140,11 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("local_llm.timeout_seconds must be positive")
     if not isinstance(llm["max_tokens"], int) or not 16 <= llm["max_tokens"] <= 4096:
         raise ValueError("local_llm.max_tokens must be from 16 to 4096")
+    cameras = config["security_cameras"]
+    if cameras["recording_policy"] not in {"off", "events_only", "continuous"}:
+        raise ValueError("security_cameras.recording_policy is invalid")
+    if not isinstance(cameras["retention_days"], int) or not 0 <= cameras["retention_days"] <= 365:
+        raise ValueError("security_cameras.retention_days must be from 0 to 365")
+    camera_confidence = cameras["minimum_event_confidence"]
+    if not isinstance(camera_confidence, (int, float)) or not 0 <= camera_confidence <= 1:
+        raise ValueError("security_cameras.minimum_event_confidence must be from 0 to 1")
