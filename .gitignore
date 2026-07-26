@@ -1,0 +1,15 @@
+.venv/
+.test-venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+config.yaml
+data/
+.env
+Nova-Home-AI-PC.exe
+build/
+dist/
+*.spec
+.gguf
+models/*.gguf
+vendor/
