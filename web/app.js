@@ -238,3 +238,85 @@ api("/api/health").then(data => {
   if (!data.simulation) document.querySelector(".status").innerHTML = "<span></span> NOVA LIVE";
 }).catch(() => document.querySelector(".status").textContent = "NOVA OFFLINE");
 refreshLockerStatus();
+
+async function refreshCameraStatus() {
+  try {
+    const data = await api("/api/security-cameras");
+    const status = data.status;
+    document.querySelector("#cameraStatus").textContent =
+      `${status.camera_count} camera${status.camera_count === 1 ? "" : "s"} · ${status.privacy_mode ? "Privacy on" : status.mode}`;
+  } catch (_) {
+    document.querySelector("#cameraStatus").textContent = "Camera module unavailable";
+  }
+}
+
+document.querySelector("#cameraBtn").onclick = async () => {
+  const data = await api("/api/security-cameras");
+  const cameras = data.cameras.length ? data.cameras.map(camera => `
+    <div class="med-row camera-row">
+      <div><strong>${camera.name}</strong><p>${camera.room} · ${camera.kind}</p></div>
+      <div><span class="camera-badge">${camera.status}</span>
+      <button onclick="previewSecurityCamera(${camera.id}, '${camera.name.replaceAll("'", "\\'")}')">View</button>
+      <button onclick="simulateCameraEvent(${camera.id})">Test motion</button></div>
+    </div>`).join("") : "<p>No cameras enrolled. Add a safe simulated camera below.</p>";
+  openModal(`<h2>Home Security Cameras</h2>
+    <p>${data.status.mode} mode · Recording policy: ${data.status.recording_policy}</p>
+    ${cameras}
+    <div class="modal-actions">
+      <button class="${data.status.privacy_mode ? "primary" : "danger"}" id="toggleCameraPrivacy">
+        ${data.status.privacy_mode ? "Disable Privacy Mode" : "Enable Privacy Mode"}
+      </button>
+      <input id="cameraName" placeholder="Camera name (Front Door)">
+      <input id="cameraRoom" placeholder="Room or area">
+      <select id="cameraKind">
+        <option value="doorbell">Doorbell</option><option value="outdoor">Outdoor</option>
+        <option value="indoor">Indoor</option><option value="driveway">Driveway</option>
+        <option value="locker">Package locker</option>
+      </select>
+      <button class="primary" id="addSimCamera">Add Simulated Camera</button>
+    </div>`);
+};
+
+window.previewSecurityCamera = async (cameraId, name) => {
+  try {
+    const preview = await api(`/api/security-cameras/${cameraId}/preview`);
+    openModal(`<h2>${name}</h2><div class="camera-preview"><div><strong>SAFE ${preview.mode.toUpperCase()} VIEW</strong><p>${preview.message}</p></div></div>`);
+  } catch (error) { reply.textContent = error.message; }
+};
+
+window.simulateCameraEvent = async cameraId => {
+  try {
+    await api(`/api/security-cameras/${cameraId}/events`, {
+      method: "POST",
+      body: JSON.stringify({ event_type: "motion", confidence: 0.94, description: "Simulated motion test" })
+    });
+    reply.textContent = "Camera motion test recorded in Nova’s audit trail.";
+  } catch (error) { reply.textContent = error.message; }
+};
+
+modal.addEventListener("click", async event => {
+  if (event.target.id === "toggleCameraPrivacy") {
+    const data = await api("/api/security-cameras");
+    await api("/api/security-cameras/privacy", {
+      method: "POST", body: JSON.stringify({ enabled: !data.status.privacy_mode })
+    });
+    modal.close();
+    reply.textContent = `Camera privacy mode ${data.status.privacy_mode ? "disabled" : "enabled"}.`;
+    refreshCameraStatus();
+  }
+  if (event.target.id === "addSimCamera") {
+    const name = document.querySelector("#cameraName").value.trim();
+    const room = document.querySelector("#cameraRoom").value.trim();
+    const kind = document.querySelector("#cameraKind").value;
+    if (!name || !room) return;
+    await api("/api/security-cameras", {
+      method: "POST",
+      body: JSON.stringify({ name, room, kind, connection: "simulation" })
+    });
+    modal.close();
+    reply.textContent = `${name} added safely in simulation mode.`;
+    refreshCameraStatus();
+  }
+});
+
+refreshCameraStatus();
