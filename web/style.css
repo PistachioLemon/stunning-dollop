@@ -34,7 +34,7 @@ h1 { font-size: clamp(2rem, 5vw, 3.7rem); letter-spacing: -.04em; }
 input, button { font: inherit; }
 input { width: 100%; border-radius: 15px; border: 1px solid #315d67; background: #07171e; color: white; padding: 15px; font-size: 1.05rem; }
 .chat-row button { border: 0; border-radius: 15px; padding: 0 24px; font-weight: 800; background: var(--aqua); color: #082027; }
-.grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin: 18px 0; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 18px 0; }
 .tile { min-height: 150px; text-align: left; color: white; border-radius: 22px; padding: 20px; cursor: pointer; transition: transform .15s, border-color .15s; }
 .tile:hover, .tile:focus { transform: translateY(-3px); border-color: var(--aqua); }
 .tile .icon { display: block; color: var(--aqua); font-size: 2rem; margin-bottom: 15px; }
@@ -55,6 +55,9 @@ dialog::backdrop { background: #000b; backdrop-filter: blur(5px); }
 .code-preview { display: block; max-width: 100%; max-height: 300px; margin: 18px auto; background: white; padding: 12px; border-radius: 12px; }
 .download-code { display: block; text-align: center; border-radius: 14px; padding: 15px; font-weight: 800; color: #082027; background: var(--aqua); text-decoration: none; }
 #scannerVideo { width: 100%; max-height: 280px; border-radius: 14px; background: #000; margin-top: 12px; }
+.camera-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+.camera-badge { color: var(--aqua); font-weight: 800; text-transform: uppercase; font-size: .72rem; }
+.camera-preview { min-height: 180px; display: grid; place-items: center; text-align: center; border-radius: 16px; margin-top: 16px; padding: 24px; color: var(--muted); background: radial-gradient(circle, #173d48, #07171e); border: 1px solid #315d67; }
 @media (max-width: 760px) {
   header { padding-top: 18px; }
   .status { display: none; }
