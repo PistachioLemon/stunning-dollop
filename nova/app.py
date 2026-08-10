@@ -20,6 +20,7 @@ from .local_llm import LocalLLM
 from .package_guardian import PackageGuardian
 from .presence import PresenceService
 from .security_cameras import SecurityCameraService
+from .training_scheduler import DailyTrainingScheduler
 from .schemas import (
     ChatRequest,
     HomeControl,
@@ -57,12 +58,22 @@ def create_app(config_path: str | None = None) -> FastAPI:
     security_cameras = SecurityCameraService(database, config)
     healing_runtime = HealingRuntime(config["_config_path"])
     learning_service = LearningService(data_dir / "learning.db")
+    learning_cfg = config["learning"]
+    training_scheduler = DailyTrainingScheduler(
+        learning_service,
+        timezone=learning_cfg["training_timezone"],
+        hour=learning_cfg["training_hour"],
+        minute=learning_cfg["training_minute"],
+        enabled=bool(learning_cfg["enabled"] and learning_cfg["auto_training_enabled"]),
+    )
     router = AgentRouter()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         database.event("nova_started", {"version": __version__, "simulation": config["app"]["simulation"]})
+        training_scheduler.start()
         yield
+        training_scheduler.stop()
         package_guardian.shutdown()
         emergency.shutdown()
         database.event("nova_stopped", {"version": __version__})
@@ -75,7 +86,8 @@ def create_app(config_path: str | None = None) -> FastAPI:
     app.state.security_cameras = security_cameras
     app.state.healing_runtime = healing_runtime
     app.state.learning_service = learning_service
-    app.include_router(build_learning_router(learning_service))
+    app.state.training_scheduler = training_scheduler
+    app.include_router(build_learning_router(learning_service, training_scheduler))
 
     static_dir = project_root / "web"
     app.mount("/assets", StaticFiles(directory=static_dir), name="assets")
@@ -97,7 +109,11 @@ def create_app(config_path: str | None = None) -> FastAPI:
             "local_llm": local_llm.status(),
             "security_cameras": security_cameras.status(),
             "self_healing": {"diagnostics_enabled": True, "execution_enabled": False},
-            "learning": {**learning_service.stats(), "weight_mutation_enabled": False},
+            "learning": {
+                **learning_service.stats(),
+                "weight_mutation_enabled": False,
+                "schedule": training_scheduler.status(),
+            },
         }
 
     @app.get("/api/healing/status")
