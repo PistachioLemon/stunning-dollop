@@ -11,11 +11,20 @@ from .schemas import LearnCapture, LessonApproval, OccurrenceCapture, Occurrence
 
 
 MAX_SCREEN_RECORDING_BYTES = 100 * 1024 * 1024
+DEFAULT_AUTO_SELECT_EVENTS = {
+    "repair_success",
+    "repair_failure",
+    "dispatch_decision",
+    "load_exception",
+    "receiving_exception",
+    "driver_correction",
+    "operator_teach",
+}
 
 
 def build_learning_router(service: LearningService, scheduler=None, auto_select_event_types=None) -> APIRouter:
     router = APIRouter(prefix="/api/learning", tags=["learning"])
-    auto_select = set(auto_select_event_types or [])
+    auto_select = set(DEFAULT_AUTO_SELECT_EVENTS if auto_select_event_types is None else auto_select_event_types)
 
     @router.get("/status")
     def status():
