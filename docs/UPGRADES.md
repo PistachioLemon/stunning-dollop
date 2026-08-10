@@ -53,6 +53,20 @@ Nova's main touchscreen/web UI now includes a **Self-Healing** tile. It calls th
 
 The dashboard escapes diagnostic/log content before rendering it and does not expose a repair-execution button. Its refresh action only reruns diagnostics. `/api/health` also advertises the current self-healing safety state so other clients can see that diagnostics are enabled while repair execution remains disabled.
 
+## Nova Model Registry
+
+Nova now has a versioned local-model registry at `models/registry.json` plus a read-only `ModelRegistry` loader.
+
+Current candidates:
+
+- **Qwen2.5 1.5B Instruct Q4_K_M** — approved primary model and current default
+- **SmolLM2 1.7B Instruct Q4_K_M** — approved fallback/comparison model
+- **Gemma 3 1B IT Q4_K_M** — experimental only and blocked from automated install by default
+
+The registry stores provider, repository, GGUF filename, llama.cpp Hugging Face reference, license, quantization, approximate size, role, and approval state. Model weights remain outside Git.
+
+A guarded installer at `scripts/install-model.py` defaults to Qwen2.5, requires explicit model-license acknowledgement, refuses to overwrite an existing model, downloads to a temporary `.part` file, and rejects obviously truncated downloads. `scripts/model-registry.py` exposes registry inspection and approved llama.cpp launch references.
+
 ## Portable Nova capsules
 
 Portable capsules can carry model references, offline knowledge, system instructions, and requested capabilities. A default-deny permission broker controls whether the host grants any requested tool access.
@@ -69,17 +83,15 @@ A GitHub Actions workflow is present to validate the protected-sandbox configura
 
 ## Current safety state
 
-Diagnostics and the operator dashboard are wired into the Nova app. Production repair execution remains intentionally gated. The branch should stay separate from `main` until CI passes and the real host callbacks are tested against the protected sandbox.
-
-## Current branch scope
-
-As of the latest update, the draft pull request contains 25 changed files and more than 1,500 added lines spanning portable capsules, self-healing control, Repair Librarian, evidence adapters, low-risk handler scaffolding, dashboard/API wiring, tests, documentation, and CI configuration.
+Diagnostics, the operator dashboard, and the model registry are wired into the experimental branch. Production repair execution remains intentionally gated. The branch should stay separate from `main` until CI passes and the real host callbacks are tested against the protected sandbox.
 
 ## Next engineering gates
 
 1. Confirm the full GitHub Actions test suite passes.
-2. Connect MQTT reconnect to Nova's actual MQTT client implementation.
-3. Connect llama.cpp restart to the installed local service manager without exposing arbitrary command execution.
-4. Add post-repair telemetry and repair-memory scoring to the dashboard.
-5. Test real low-risk handlers inside the protected sandbox.
-6. Only after those checks, review the branch for merge into `main`.
+2. Dry-run the Qwen2.5 installer and verify registry tests.
+3. Benchmark Qwen2.5 and SmolLM2 on the target PC/Pi hardware before selecting a production default.
+4. Connect MQTT reconnect to Nova's actual MQTT client implementation.
+5. Connect llama.cpp restart to the installed local service manager without exposing arbitrary command execution.
+6. Add post-repair telemetry and repair-memory scoring to the dashboard.
+7. Test real low-risk handlers inside the protected sandbox.
+8. Only after those checks, review the branch for merge into `main`.
