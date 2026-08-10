@@ -12,7 +12,6 @@ class ModelEntry:
     provider: str
     repo_id: str
     filename: str
-    llama_hf_ref: str
     license: str
     parameters_billion: float
     quantization: str
@@ -20,6 +19,9 @@ class ModelEntry:
     role: str
     approved: bool
     notes: str = ""
+    llama_hf_ref: str | None = None
+    download_url: str | None = None
+    sha256: str | None = None
 
 
 class ModelRegistry:
@@ -39,14 +41,16 @@ class ModelRegistry:
                 provider=item["provider"],
                 repo_id=item["repo_id"],
                 filename=item["filename"],
-                llama_hf_ref=item["llama_hf_ref"],
                 license=item["license"],
                 parameters_billion=float(item["parameters_billion"]),
                 quantization=item["quantization"],
-                approx_size_bytes=int(item["approx_size_bytes"]),
+                approx_size_bytes=int(item.get("approx_size_bytes", 0)),
                 role=item["role"],
                 approved=bool(item["approved"]),
                 notes=item.get("notes", ""),
+                llama_hf_ref=item.get("llama_hf_ref"),
+                download_url=item.get("download_url"),
+                sha256=item.get("sha256"),
             )
             for item in raw["models"]
         }
@@ -76,4 +80,6 @@ class ModelRegistry:
         entry = self.get(model_id)
         if not entry.approved:
             raise PermissionError(f"Model is not approved for Nova install: {entry.id}")
-        return [executable, "-hf", entry.llama_hf_ref]
+        if entry.llama_hf_ref:
+            return [executable, "-hf", entry.llama_hf_ref]
+        return [executable, "-m", str(self.install_target(entry.id))]
