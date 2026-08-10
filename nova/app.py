@@ -19,7 +19,6 @@ from .learning_routes import build_learning_router
 from .local_llm import LocalLLM
 from .package_guardian import PackageGuardian
 from .presence import PresenceService
-from .security_cameras import SecurityCameraService
 from .training_scheduler import DailyTrainingScheduler
 from .schemas import (
     ChatRequest,
@@ -35,9 +34,6 @@ from .schemas import (
     PackageVerify,
     SOSCancel,
     SOSCreate,
-    SecurityCameraCreate,
-    SecurityCameraEventCreate,
-    SecurityCameraPrivacy,
 )
 
 
@@ -55,7 +51,6 @@ def create_app(config_path: str | None = None) -> FastAPI:
     presence = PresenceService(config)
     package_guardian = PackageGuardian(database, config)
     local_llm = LocalLLM(config)
-    security_cameras = SecurityCameraService(database, config)
     healing_runtime = HealingRuntime(config["_config_path"])
     learning_service = LearningService(data_dir / "learning.db")
     learning_cfg = config["learning"]
@@ -83,7 +78,6 @@ def create_app(config_path: str | None = None) -> FastAPI:
     app.state.database = database
     app.state.emergency = emergency
     app.state.package_guardian = package_guardian
-    app.state.security_cameras = security_cameras
     app.state.healing_runtime = healing_runtime
     app.state.learning_service = learning_service
     app.state.training_scheduler = training_scheduler
@@ -111,7 +105,6 @@ def create_app(config_path: str | None = None) -> FastAPI:
             "presence": presence.state(),
             "package_locker": package_guardian.status(),
             "local_llm": local_llm.status(),
-            "security_cameras": security_cameras.status(),
             "self_healing": {"diagnostics_enabled": True, "execution_enabled": False},
             "learning": {
                 **learning_service.stats(),
@@ -274,40 +267,6 @@ def create_app(config_path: str | None = None) -> FastAPI:
     def events(limit: int = 50):
         return database.recent_events(min(max(limit, 1), 200))
 
-    @app.get("/api/security-cameras")
-    def list_security_cameras():
-        return {"status": security_cameras.status(), "cameras": database.security_cameras(), "events": database.camera_events(50)}
-
-    @app.post("/api/security-cameras", status_code=201)
-    def add_security_camera(request: SecurityCameraCreate):
-        try:
-            camera_id = security_cameras.add_camera(request.name, request.kind, request.room, request.connection, request.stream_url)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"id": camera_id}
-
-    @app.post("/api/security-cameras/privacy")
-    def set_security_camera_privacy(request: SecurityCameraPrivacy):
-        return security_cameras.set_privacy(request.enabled)
-
-    @app.get("/api/security-cameras/{camera_id}/preview")
-    def preview_security_camera(camera_id: int):
-        try:
-            return security_cameras.preview(camera_id)
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-    @app.post("/api/security-cameras/{camera_id}/events", status_code=201)
-    def add_security_camera_event(camera_id: int, request: SecurityCameraEventCreate):
-        try:
-            event_id = security_cameras.record_event(camera_id, request.event_type, request.confidence, request.description)
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-        return {"id": event_id}
 
     return app
 
