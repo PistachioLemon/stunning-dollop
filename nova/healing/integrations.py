@@ -28,7 +28,7 @@ class KnowledgeSource:
 
 
 class RepairEvidenceLoader:
-    """Ingest trusted Nova manuals, capsule notes, logs, and local documentation."""
+    """Ingest trusted dispatcher manuals, capsule notes, logs, and documentation."""
 
     def __init__(self, librarian: RepairLibrarian):
         self.librarian = librarian
@@ -69,7 +69,7 @@ class RepairEvidenceLoader:
 
 
 def local_llm_probe(local_llm) -> HealthFinding:
-    """Read-only health probe for Nova's existing llama.cpp integration."""
+    """Read-only health probe for the dispatcher llama.cpp integration."""
 
     status = local_llm.status()
     if not status.get("enabled"):
@@ -107,7 +107,7 @@ def log_signature_probe(
 ) -> HealthFinding:
     """Inspect the tail of a local log for known error signatures.
 
-    `signatures` maps stable Nova signature names to regex patterns. This probe
+    `signatures` maps stable dispatcher signature names to regex patterns. This probe
     does not invoke a shell, follow commands from logs, or alter the log file.
     """
 
@@ -147,9 +147,9 @@ def protected_sandbox_probe(config: dict) -> HealthFinding:
     """Fail closed unless the configured repair sandbox is actually isolated."""
 
     app = config.get("app", {})
-    locker = config.get("package_locker", {})
+    telemetry = config.get("telemetry", {})
     host = str(app.get("host", ""))
-    simulation = bool(app.get("simulation")) and bool(locker.get("simulation", True))
+    simulation = bool(app.get("simulation")) and bool(telemetry.get("simulation", True))
     isolated_host = host in {"127.0.0.1", "localhost", "::1"}
     healthy = simulation and isolated_host
     return HealthFinding(
@@ -169,7 +169,7 @@ def register_default_evidence(
     project_root: str | Path,
     data_dir: str | Path | None = None,
 ) -> dict:
-    """Wire safe, read-only Nova evidence sources into the healing prototype.
+    """Wire safe, read-only dispatcher evidence into system recovery.
 
     This intentionally registers probes and knowledge only. It does not register
     destructive repair handlers or grant new permissions.
@@ -179,8 +179,8 @@ def register_default_evidence(
     engine.register_probe("local_llm", lambda: local_llm_probe(local_llm))
 
     sources = [
-        KnowledgeSource(root / "README.md", trust=80, component="nova"),
-        KnowledgeSource(root / "docs", trust=80, component="nova"),
+        KnowledgeSource(root / "README.md", trust=80, component="dispatcher"),
+        KnowledgeSource(root / "docs", trust=80, component="dispatcher"),
         KnowledgeSource(root / "capsules", trust=75, component="capsules"),
     ]
     if data_dir is not None:

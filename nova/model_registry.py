@@ -25,14 +25,14 @@ class ModelEntry:
 
 
 class ModelRegistry:
-    """Read-only registry of Nova-approved local GGUF models."""
+    """Read-only registry of approved RequantAi local GGUF models."""
 
     def __init__(self, path: str | Path | None = None):
         project_root = Path(__file__).resolve().parent.parent
         self.path = Path(path) if path else project_root / "models" / "registry.json"
         raw = json.loads(self.path.read_text(encoding="utf-8"))
         if raw.get("schema_version") != 1:
-            raise ValueError("Unsupported Nova model registry schema")
+            raise ValueError("Unsupported RequantAi model registry schema")
         self.default_model = raw["default_model"]
         self._entries = {
             item["id"]: ModelEntry(
@@ -64,7 +64,7 @@ class ModelRegistry:
         try:
             return self._entries[key]
         except KeyError as exc:
-            raise KeyError(f"Unknown Nova model: {key}") from exc
+            raise KeyError(f"Unknown RequantAi model: {key}") from exc
 
     def approved(self) -> list[ModelEntry]:
         return [entry for entry in self._entries.values() if entry.approved]
@@ -79,7 +79,7 @@ class ModelRegistry:
     def llama_command(self, model_id: str | None = None, *, executable: str = "llama-server") -> list[str]:
         entry = self.get(model_id)
         if not entry.approved:
-            raise PermissionError(f"Model is not approved for Nova install: {entry.id}")
+            raise PermissionError(f"Model is not approved for RequantAi install: {entry.id}")
         if entry.llama_hf_ref:
             return [executable, "-hf", entry.llama_hf_ref]
         return [executable, "-m", str(self.install_target(entry.id))]

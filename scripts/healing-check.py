@@ -7,7 +7,7 @@ from nova.healing.runtime import HealingRuntime
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run Nova self-healing diagnostics without executing repairs")
+    parser = argparse.ArgumentParser(description="Run RequantAi system recovery diagnostics without executing repairs")
     parser.add_argument("--config", default="config.yaml")
     args = parser.parse_args()
     runtime = HealingRuntime(args.config)

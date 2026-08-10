@@ -19,7 +19,7 @@ class ResearchSource:
 
 
 class TruckingResearchPolicy:
-    """Allowlist and provenance policy for Nova trucking research.
+    """Allowlist and provenance policy for RequantAi trucking research.
 
     This module does not perform network requests itself. A host web-research
     adapter must supply fetched text and metadata. That separation keeps web

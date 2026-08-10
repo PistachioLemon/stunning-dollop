@@ -14,7 +14,7 @@ class Rule:
 
 
 class TruckingRuleEngine:
-    """Small deterministic if-this-then-that layer for Nova trucking workflows.
+    """Deterministic if-this-then-that layer for RequantAi hauling workflows.
 
     Rules map named triggers to named actions. The engine never evaluates
     arbitrary Python or shell text. Host code must register both trigger

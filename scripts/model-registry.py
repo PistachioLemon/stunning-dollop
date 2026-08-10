@@ -8,7 +8,7 @@ from nova.model_registry import ModelRegistry
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Inspect Nova's approved local GGUF model registry")
+    parser = argparse.ArgumentParser(description="Inspect RequantAi approved local GGUF models")
     parser.add_argument("--model", help="Model id to inspect")
     parser.add_argument("--llama-command", action="store_true", help="Print llama.cpp launch command")
     parser.add_argument("--json", action="store_true", help="Print JSON")

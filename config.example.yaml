@@ -1,92 +1,36 @@
 app:
-  name: Nova
-  host: 127.0.0.1
+  name: RequantAi Dispatcher
+  host: 0.0.0.0
   port: 8787
   timezone: America/Los_Angeles
   simulation: true
   data_dir: ./data
-
-profile:
-  display_name: Mom
-  emergency_pin: "2468"
-  medication_grace_minutes: 30
-
-safety:
-  countdown_seconds: 15
-  require_confirmation: true
-  outbound_emergency_enabled: false
-  emergency_provider: disabled
-  trusted_contacts: []
-
-presence:
-  enabled: true
-  camera_index: 0
-  dim_after_seconds: 90
-  sleep_after_seconds: 300
-
-voice:
-  enabled: false
-  wake_phrase: hey nova
-  whisper_model: tiny.en
-  piper_command: piper
-
-# Runs locally on the PC through llama.cpp. Keep disabled until a GGUF model is
-# installed at model_path and llama-server is listening at server_url.
+runtime:
+  profile: cpu_minimum
+  accelerator: none
+  require_accelerator: false
 local_llm:
   enabled: false
   server_url: http://127.0.0.1:8080
-  model_path: ./models/nova-assistant.gguf
+  model_path: ./models/trucklm-small.gguf
   timeout_seconds: 45
   max_tokens: 256
-  temperature: 0.3
-  system_prompt: >-
-    You are Nova, a concise offline home assistant. Never claim that an
-    emergency call, door unlock, medication record, message, or device action
-    occurred unless Nova's verified tools report that it occurred.
-
-# Nova collects operator-approved lessons plus selected operational occurrences
-# during the day. At 1:00 AM Pacific it automatically queues a TruckLM QLoRA
-# candidate batch. The active GGUF is never auto-promoted; the candidate must
-# pass evaluation before an operator-approved promotion.
+  temperature: 0.2
 learning:
   enabled: true
-  auto_training_enabled: true
+  auto_training_enabled: false
   training_timezone: America/Los_Angeles
   training_hour: 1
   training_minute: 0
   occurrence_lookback_hours: 24
-  auto_select_event_types:
-    - repair_success
-    - repair_failure
-    - dispatch_decision
-    - load_exception
-    - receiving_exception
-    - driver_correction
-    - operator_teach
+  auto_select_event_types: [repair_success, repair_failure, dispatch_decision, load_exception, receiving_exception, driver_correction, operator_teach]
   auto_promote_model: false
-
-home_assistant:
-  enabled: false
-  base_url: http://homeassistant.local:8123
-  token_env: NOVA_HA_TOKEN
-
-package_locker:
-  enabled: true
+telemetry:
   simulation: true
-  operator_pin: "8642"
-  gpio_pin: 17
-  active_high: true
-  unlock_seconds: 20
-  max_unlock_seconds: 60
-  require_courier_pin: true
-  minimum_verification_confidence: 0.80
-  auto_unlock_verified_delivery: true
-
-# Camera credentials belong in Home Assistant or environment-managed adapters,
-# never in this file or Git. Simulation mode contacts no real camera.
-security_cameras:
-  enabled: true
-  simulation: true
-  recording_policy: events_only
-  retention_days: 7
-  minimum_event_confidence: 0.70
+  mqtt_enabled: false
+  gps_enabled: true
+  can_enabled: false
+  obd_enabled: false
+  reefer_enabled: false
+  load_sensors_enabled: false
+  cargo_vision_enabled: false

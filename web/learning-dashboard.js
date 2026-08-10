@@ -11,7 +11,7 @@
   async function learningApi(path, options = {}) {
     const response = await fetch(path, options);
     const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || "Nova learning request failed.");
+    if (!response.ok) throw new Error(data.detail || "Operational learning request failed.");
     return data;
   }
 
@@ -44,17 +44,17 @@
   function openLearning(data) {
     const schedule = data?.schedule;
     modalContent.innerHTML = `
-      <h2>Nova Learn / TruckLM</h2>
+      <h2>RequantAi Operational Learning / TruckLM</h2>
       <p><strong>Training window:</strong> ${schedule?.enabled ? "ON" : "OFF"} · 1:00 AM Pacific</p>
-      <p>Driver logoff starts review only. Nova prompts for missing particulars, you approve what should be learned, then a push-button acknowledgement authorizes the 1 AM training window.</p>
+      <p>Driver logoff starts review only. The system prompts for missing particulars; operator acknowledgement authorizes the 1 AM training window.</p>
       <div class="modal-actions">
         <button class="primary" id="driverLogoffReview">Driver logged off · review today</button>
-        <button id="learnAllWords">Learn all words on this Nova page</button>
+        <button id="learnAllWords">Learn this dispatcher page</button>
         <button id="learnSelection">Learn selected words</button>
         <button id="startScreenLesson">Start screen lesson</button>
       </div>
       <label><input type="checkbox" id="approveLearned"> Include this lesson in tonight's training</label>
-      <textarea id="learningNotes" rows="4" placeholder="Add the particulars Nova missed, corrections, causes, or the better action to learn."></textarea>
+      <textarea id="learningNotes" rows="4" placeholder="Add missing particulars, corrections, causes, or the better action to learn."></textarea>
       <div class="modal-actions">
         <button id="manualLesson">Add training particulars</button>
         <button id="prepareTrainingBatch">Prepare tonight's batch</button>
@@ -82,7 +82,7 @@
         approve_for_training: approved
       })
     });
-    reply.textContent = `Nova learned “${data.title}”.${approved ? " It is selected for tonight's TruckLM batch." : ""}`;
+    reply.textContent = `Lesson saved: “${data.title}”.${approved ? " It is selected for tonight's TruckLM batch." : ""}`;
     await refreshStatus();
   }
 
@@ -95,7 +95,7 @@
           <div class="card"><strong>Post-drive review</strong><ul>${prompts}</ul>
           <small>Next training window: ${escaped(review.next_training_window || review.training_window)}</small></div>`;
         document.querySelector("#learningNotes")?.focus();
-        reply.textContent = "Nova opened the post-drive learning review. Add anything it missed, then prepare tonight's batch.";
+        reply.textContent = "Post-drive learning review opened. Add anything missed, then prepare tonight's batch.";
       }
 
       if (event.target.id === "learnAllWords") {
@@ -137,7 +137,7 @@
         const result = await learningApi(`/api/learning/training-batches/${batchId}/acknowledge`, { method: "POST" });
         event.target.disabled = true;
         event.target.textContent = "Approved for 1 AM";
-        reply.textContent = `TruckLM batch ${result.batch_id} acknowledged. Nova will release it when the 1 AM Pacific training window opens.`;
+        reply.textContent = `TruckLM batch ${result.batch_id} acknowledged. The dispatcher will release it when the 1 AM Pacific training window opens.`;
         await refreshStatus();
       }
 
@@ -152,7 +152,7 @@
         recorder.onstop = async () => {
           const blob = new Blob(chunks, { type: "video/webm" });
           const form = new FormData();
-          form.append("recording", blob, "nova-screen-lesson.webm");
+          form.append("recording", blob, "dispatcher-screen-lesson.webm");
           form.append("title", "Operator screen lesson");
           form.append("operator_notes", document.querySelector("#learningNotes")?.value || "");
           form.append("approve_for_training", String(Boolean(document.querySelector("#approveLearned")?.checked)));
@@ -167,7 +167,7 @@
         recorder.start(1000);
         event.target.textContent = "Stop screen lesson";
         event.target.id = "stopScreenLesson";
-        reply.textContent = "Nova is recording the shared screen lesson. Stop when the demonstration is complete.";
+        reply.textContent = "Recording the shared screen lesson. Stop when the demonstration is complete.";
       } else if (event.target.id === "stopScreenLesson") {
         recorder?.stop();
         event.target.textContent = "Saving…";

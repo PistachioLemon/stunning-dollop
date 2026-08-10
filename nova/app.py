@@ -8,33 +8,15 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .agents import AGENTS, AgentRouter
+from .agents import AgentRouter, agent_manifest
 from .config import load_config
 from .database import Database
-from .emergency import EmergencyService
 from .healing.runtime import HealingRuntime
-from .home_assistant import HomeAssistantClient
 from .learning import LearningService
 from .learning_routes import build_learning_router
 from .local_llm import LocalLLM
-from .package_guardian import PackageGuardian
-from .presence import PresenceService
+from .schemas import ChatRequest, DispatchEvaluation, TruckTelemetry
 from .training_scheduler import DailyTrainingScheduler
-from .schemas import (
-    ChatRequest,
-    HomeControl,
-    LockerLock,
-    LockerUnlock,
-    MedicationCreate,
-    MedicationRecord,
-    NoteCreate,
-    PackageCodeCreate,
-    PackageCodeScan,
-    PackageCreate,
-    PackageVerify,
-    SOSCancel,
-    SOSCreate,
-)
 
 
 def create_app(config_path: str | None = None) -> FastAPI:
@@ -45,11 +27,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
         data_dir = project_root / data_dir
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    database = Database(data_dir / "nova.db")
-    emergency = EmergencyService(database, config)
-    home = HomeAssistantClient(config)
-    presence = PresenceService(config)
-    package_guardian = PackageGuardian(database, config)
+    database = Database(data_dir / "dispatcher.db")
     local_llm = LocalLLM(config)
     healing_runtime = HealingRuntime(config["_config_path"])
     learning_service = LearningService(data_dir / "learning.db")
@@ -65,27 +43,19 @@ def create_app(config_path: str | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        database.event("nova_started", {"version": __version__, "simulation": config["app"]["simulation"]})
+        database.event("dispatcher_started", {"version": __version__, "simulation": config["app"]["simulation"]})
         training_scheduler.start()
         yield
         training_scheduler.stop()
-        package_guardian.shutdown()
-        emergency.shutdown()
-        database.event("nova_stopped", {"version": __version__})
+        database.event("dispatcher_stopped", {"version": __version__})
 
-    app = FastAPI(title="Nova Home AI", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="RequantAi Dispatcher", version=__version__, lifespan=lifespan)
     app.state.config = config
     app.state.database = database
-    app.state.emergency = emergency
-    app.state.package_guardian = package_guardian
     app.state.healing_runtime = healing_runtime
     app.state.learning_service = learning_service
     app.state.training_scheduler = training_scheduler
-    app.include_router(build_learning_router(
-        learning_service,
-        training_scheduler,
-        learning_cfg.get("auto_select_event_types", []),
-    ))
+    app.include_router(build_learning_router(learning_service, training_scheduler, learning_cfg.get("auto_select_event_types", [])))
 
     static_dir = project_root / "web"
     app.mount("/assets", StaticFiles(directory=static_dir), name="assets")
@@ -101,16 +71,11 @@ def create_app(config_path: str | None = None) -> FastAPI:
             "name": config["app"]["name"],
             "version": __version__,
             "simulation": config["app"]["simulation"],
-            "home_assistant": home.status(),
-            "presence": presence.state(),
-            "package_locker": package_guardian.status(),
+            "runtime": {**config["runtime"], "cpu_only_ready": not config["runtime"]["require_accelerator"]},
+            "telemetry": config["telemetry"],
             "local_llm": local_llm.status(),
-            "self_healing": {"diagnostics_enabled": True, "execution_enabled": False},
-            "learning": {
-                **learning_service.stats(),
-                "weight_mutation_enabled": False,
-                "schedule": training_scheduler.status(),
-            },
+            "system_recovery": {"diagnostics_enabled": True, "execution_enabled": False},
+            "learning": {**learning_service.stats(), "weight_mutation_enabled": False, "schedule": training_scheduler.status()},
         }
 
     @app.get("/api/healing/status")
@@ -118,155 +83,46 @@ def create_app(config_path: str | None = None) -> FastAPI:
         try:
             return healing_runtime.diagnose()
         except Exception as exc:
-            raise HTTPException(status_code=503, detail=f"Self-healing diagnostics unavailable: {exc}") from exc
+            raise HTTPException(status_code=503, detail=f"System recovery diagnostics unavailable: {exc}") from exc
 
     @app.get("/api/agents")
     def agents():
-        return [agent.__dict__ for agent in AGENTS]
+        return agent_manifest()
 
     @app.post("/api/chat")
     def chat(request: ChatRequest):
         result = router.route(request.text)
-        if result["agent"] in {"companion", "librarian"} and config["local_llm"]["enabled"]:
+        if result["agent"] in {"trucklm", "librarian"} and config["local_llm"]["enabled"]:
             try:
-                result["reply"] = local_llm.chat(request.text)
-                result["model"] = "local_gguf"
+                result.update(reply=local_llm.chat(request.text), model="local_gguf")
             except RuntimeError as exc:
-                result["model"] = "agent_router_fallback"
-                result["model_error"] = str(exc)
+                result.update(model="deterministic_fallback", model_error=str(exc))
         database.event("agent_routed", {"text": request.text, "agent": result["agent"]})
         return result
 
-    @app.get("/api/medications")
-    def medications():
-        return database.medications()
+    @app.get("/api/trucks")
+    def trucks():
+        return database.trucks()
 
-    @app.post("/api/medications", status_code=201)
-    def add_medication(request: MedicationCreate):
-        medication_id = database.add_medication(request.name, request.dosage, request.due_time)
-        database.event("medication_added", {"medication_id": medication_id, "name": request.name})
-        return {"id": medication_id}
+    @app.post("/api/trucks/telemetry", status_code=202)
+    def update_telemetry(request: TruckTelemetry):
+        payload = request.model_dump(exclude={"truck_id"}, exclude_none=True)
+        state = database.update_truck(request.truck_id, payload)
+        database.event("truck_telemetry", {"truck_id": request.truck_id, "fields": sorted(payload)})
+        return state
 
-    @app.post("/api/medications/{medication_id}/record")
-    def record_medication(medication_id: int, request: MedicationRecord):
-        try:
-            database.log_medication(medication_id, request.status)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-        database.event("medication_recorded", {"medication_id": medication_id, "status": request.status})
-        return {"ok": True}
-
-    @app.get("/api/notes")
-    def notes():
-        return database.notes()
-
-    @app.post("/api/notes", status_code=201)
-    def add_note(request: NoteCreate):
-        note_id = database.add_note(request.category, request.body)
-        database.event("note_added", {"note_id": note_id, "category": request.category})
-        return {"id": note_id}
-
-    @app.post("/api/sos", status_code=201)
-    def start_sos(request: SOSCreate):
-        return emergency.start(request.reason).__dict__
-
-    @app.post("/api/sos/cancel")
-    def cancel_sos(request: SOSCancel):
-        try:
-            return emergency.cancel(request.session_id, request.pin)
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-    @app.get("/api/sos/{session_id}")
-    def sos_state(session_id: str):
-        result = database.emergency(session_id)
-        if not result:
-            raise HTTPException(status_code=404, detail="Emergency session not found")
+    @app.post("/api/dispatch/evaluate")
+    def evaluate_load(request: DispatchEvaluation):
+        profit = request.gross_revenue - request.estimated_cost - request.risk_penalty
+        total_miles = request.deadhead_miles + request.loaded_miles
+        score = round((profit / total_miles) if total_miles else 0, 2)
+        result = {"truck_id": request.truck_id, "load_id": request.load_id, "estimated_profit": round(profit, 2), "profit_per_total_mile": score, "recommendation": "review" if profit > 0 else "reject", "requires_operator_approval": True}
+        database.event("dispatch_decision", result)
         return result
-
-    @app.post("/api/presence")
-    def observe_presence():
-        return presence.observe()
-
-    @app.post("/api/home/control")
-    def control_home(request: HomeControl):
-        try:
-            result = home.call_service(request.domain, request.service, request.entity_id)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
-        database.event("home_control", request.model_dump())
-        return result
-
-    @app.get("/api/packages")
-    def packages():
-        return database.deliveries()
-
-    @app.post("/api/packages", status_code=201)
-    def add_package(request: PackageCreate):
-        try:
-            package_guardian.require_authorized(request.operator_pin)
-            delivery_id = package_guardian.add_expected_delivery(request.carrier, request.tracking_code, request.recipient, request.courier_pin)
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        return {"id": delivery_id}
-
-    @app.post("/api/packages/verify")
-    def verify_package(request: PackageVerify):
-        try:
-            return package_guardian.verify_delivery(request.tracking_code, request.courier_pin, request.confidence, request.evidence_sha256)
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-    @app.post("/api/packages/{delivery_id}/access-code", status_code=201)
-    def create_package_access_code(delivery_id: int, request: PackageCodeCreate):
-        try:
-            return package_guardian.generate_access_code(delivery_id, request.operator_pin, request.code_type, request.expires_minutes)
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-    @app.post("/api/packages/scan")
-    def scan_package_access_code(request: PackageCodeScan):
-        try:
-            return package_guardian.scan_access_code(request.code)
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-    @app.get("/api/locker/status")
-    def locker_status():
-        return package_guardian.status()
-
-    @app.post("/api/locker/unlock")
-    def unlock_locker(request: LockerUnlock):
-        try:
-            package_guardian.require_authorized(request.pin)
-            return package_guardian.unlock(request.reason, request.duration_seconds)
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        except RuntimeError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-
-    @app.post("/api/locker/lock")
-    def lock_locker(request: LockerLock):
-        try:
-            package_guardian.require_authorized(request.pin)
-            return package_guardian.lock(request.reason)
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
 
     @app.get("/api/events")
     def events(limit: int = 50):
         return database.recent_events(min(max(limit, 1), 200))
-
 
     return app
 

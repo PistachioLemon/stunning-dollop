@@ -8,11 +8,11 @@ def test_healing_status_is_read_only_and_structured(client):
     assert "knowledge_items_bootstrapped" in data
 
 
-def test_health_endpoint_advertises_gated_self_healing(client):
+def test_health_endpoint_advertises_gated_system_recovery(client):
     response = client.get("/api/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["self_healing"] == {
+    assert data["system_recovery"] == {
         "diagnostics_enabled": True,
         "execution_enabled": False,
     }

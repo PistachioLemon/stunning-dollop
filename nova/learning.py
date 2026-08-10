@@ -13,7 +13,7 @@ class LearningService:
 
     LEARN writes retrieval-ready knowledge. Driver logoff produces a review
     prompt so the operator can add missing particulars. At the nightly window,
-    Nova prepares or releases a candidate batch only after explicit acknowledgement.
+    The dispatcher prepares or releases a candidate batch only after acknowledgement.
     """
 
     def __init__(self, path: str | Path):
@@ -146,7 +146,7 @@ class LearningService:
         unselected = [dict(row) for row in rows if not row["selected_for_training"]]
         prompts = []
         if selected:
-            prompts.append("Review today's selected events. Add corrections, causes, or better actions Nova should learn.")
+            prompts.append("Review today's selected events. Add corrections, causes, or better actions the dispatcher should learn.")
         if unselected:
             prompts.append("Check whether any unselected event from today should be included in TruckLM training.")
         if any(row["event_type"] in {"repair_failure", "load_exception", "receiving_exception"} for row in rows):
@@ -154,7 +154,7 @@ class LearningService:
         if any(row["event_type"] == "driver_correction" for row in rows):
             prompts.append("Confirm the driver correction and the preferred future decision or wording.")
         if not prompts:
-            prompts.append("Anything from today's driving, dispatch, loading, receiving, or equipment behavior Nova should remember?")
+            prompts.append("Anything from today's driving, dispatch, loading, receiving, or equipment behavior the system should remember?")
         return {
             "selected_occurrences": selected,
             "unselected_occurrences": unselected,

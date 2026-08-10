@@ -1,17 +1,9 @@
 {
-  "name": "Nova Offline Manual",
+  "name": "RequantAi Offline Truck Manual",
   "version": "0.1",
-  "model": "models/nova-small.gguf",
-  "system_prompt": "You are Nova in offline manual mode. Use packaged knowledge first. Never claim a host tool was executed unless the permission broker returns an authorized result.",
-  "knowledge": [
-    "knowledge/manual.txt"
-  ],
-  "requested_tools": [
-    "read_sensor"
-  ],
-  "metadata": {
-    "portable": true,
-    "network_required": false,
-    "experimental_pdf_export": true
-  }
+  "model": "models/trucklm-small.gguf",
+  "system_prompt": "Use packaged trucking knowledge first. Never claim a host tool ran unless the Permission Broker returns a verified result.",
+  "knowledge": ["knowledge/manual.txt"],
+  "requested_tools": ["read_truck_sensor"],
+  "metadata": {"portable": true, "network_required": false}
 }

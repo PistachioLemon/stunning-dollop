@@ -11,7 +11,7 @@ from .models import HealthFinding, RepairHandler, RepairRecipe, RiskLevel
 class LowRiskHostActions:
     """Explicit host callbacks for low-risk repairs.
 
-    Nova never invents shell commands here. The embedding host must provide
+    The system never invents shell commands here. The embedding host must provide
     these callables, which keeps the repair surface small, auditable, and
     testable.
     """

@@ -7,7 +7,7 @@ from nova.knowledge_pack import build_pack
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build a Nova streamable knowledge pack")
+    parser = argparse.ArgumentParser(description="Build a RequantAi streamable knowledge pack")
     parser.add_argument("--output", required=True)
     parser.add_argument("--pack-id", required=True)
     parser.add_argument("paths", nargs="+", help="Text/JSON/JSONL/Markdown/PDF-summary files to include")
@@ -25,7 +25,7 @@ def main() -> None:
         args.output,
         files,
         pack_id=args.pack_id,
-        metadata={"purpose": "Nova/TruckLM retrieval knowledge"},
+        metadata={"purpose": "RequantAi/TruckLM retrieval knowledge"},
     )
     print(output)
 

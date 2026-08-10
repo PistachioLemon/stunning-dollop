@@ -17,7 +17,7 @@ class FakeLLM:
         self._status = {
             "enabled": enabled,
             "provider": "llama.cpp",
-            "model_path": "/tmp/nova.gguf",
+            "model_path": "/tmp/trucklm.gguf",
             "model_present": model_present,
             "server_url": "http://127.0.0.1:8080",
             "fallback": "agent_router",
@@ -34,7 +34,7 @@ def test_local_llm_missing_model_is_unhealthy():
 
 
 def test_log_probe_detects_known_signature(tmp_path: Path):
-    log = tmp_path / "nova.log"
+    log = tmp_path / "dispatcher.log"
     log.write_text("worker ready\nERROR mqtt connection refused\n", encoding="utf-8")
     finding = log_signature_probe(
         name="mqtt",
@@ -54,7 +54,7 @@ def test_sandbox_probe_fails_closed():
     safe = protected_sandbox_probe(
         {
             "app": {"host": "127.0.0.1", "simulation": True},
-            "package_locker": {"simulation": True},
+            "telemetry": {"simulation": True},
         }
     )
     assert safe.healthy is True
@@ -71,7 +71,7 @@ def test_evidence_loader_does_not_ingest_unsupported_files(tmp_path: Path):
 
 
 def test_register_default_evidence_wires_probe_and_docs(tmp_path: Path):
-    (tmp_path / "README.md").write_text("Nova local repair documentation", encoding="utf-8")
+    (tmp_path / "README.md").write_text("RequantAi local repair documentation", encoding="utf-8")
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "llm.md").write_text("GGUF model troubleshooting", encoding="utf-8")
     (tmp_path / "capsules").mkdir()

@@ -55,7 +55,7 @@ class DailyTrainingScheduler:
             self._thread.join(timeout=2)
 
     def driver_logged_off(self, *, occurred_at: datetime | None = None, verified: bool = True) -> dict:
-        """Return Nova's post-drive training review prompts after verified logoff."""
+        """Return post-drive training review prompts after verified logoff."""
         if not self.enabled:
             return {"status": "disabled", "trigger": "driver_logoff"}
         if not verified:

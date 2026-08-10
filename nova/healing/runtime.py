@@ -16,7 +16,7 @@ from .memory import RepairMemory
 
 
 DEFAULT_LOG_SIGNATURES = {
-    "nova": {
+    "dispatcher": {
         "python_traceback": r"Traceback \(most recent call last\)",
         "permission_denied": r"Permission(?:Error| denied)",
         "database_locked": r"database is locked",
@@ -34,7 +34,7 @@ DEFAULT_LOG_SIGNATURES = {
 
 
 class HealingRuntime:
-    """Read-mostly integration layer between Nova and the self-healing prototype.
+    """Read-mostly integration layer for RequantAi system recovery.
 
     The runtime collects evidence and proposes repairs. It does not add repair
     execution handlers by itself, so merely enabling diagnostics cannot execute

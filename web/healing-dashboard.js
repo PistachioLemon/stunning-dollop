@@ -33,11 +33,11 @@ function renderHealingDashboard(data) {
     (items || []).map(item => `<div class="med-row">
       <strong>Proposed repair · ${healingEscape(item.proposed_action)}</strong>
       <p>${healingEscape(issueId)} · trust ${healingEscape(item.trust)} · risk ${healingEscape(item.risk)}</p>
-      <small>${healingEscape(item.title)} — proposal only; Nova has not executed it.</small>
+      <small>${healingEscape(item.title)} — proposal only; the dispatcher has not executed it.</small>
     </div>`)
   ).join("");
 
-  openModal(`<h2>Nova Self-Healing</h2>
+  openModal(`<h2>RequantAi System Recovery</h2>
     <p><strong>${unhealthy.length ? `${unhealthy.length} issue${unhealthy.length === 1 ? "" : "s"} detected` : "All reported probes healthy"}</strong></p>
     <p>Repair execution: <strong>${data.execution_enabled ? "ENABLED" : "GATED / DISABLED"}</strong> · Repair proposals: ${proposalCount} · Knowledge loaded: ${data.knowledge_items_bootstrapped ?? 0}</p>
     <h3>System Health</h3>
@@ -63,7 +63,7 @@ async function loadHealingDashboard(showModal = true) {
   } catch (error) {
     if (status) status.textContent = "Diagnostics unavailable";
     if (showModal) {
-      openModal(`<h2>Nova Self-Healing</h2><p>${healingEscape(error.message)}</p>`);
+      openModal(`<h2>RequantAi System Recovery</h2><p>${healingEscape(error.message)}</p>`);
     }
   }
 }

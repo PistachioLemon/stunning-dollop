@@ -21,7 +21,7 @@ def download(entry, destination: Path) -> None:
     url = entry.download_url or f"https://huggingface.co/{entry.repo_id}/resolve/main/{entry.filename}?download=true"
     part = destination.with_suffix(destination.suffix + ".part")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": "Nova-Model-Installer/2"})
+    request = urllib.request.Request(url, headers={"User-Agent": "RequantAi-Model-Installer/2"})
     try:
         with urllib.request.urlopen(request, timeout=90) as response, part.open("wb") as output:
             shutil.copyfileobj(response, output, length=1024 * 1024)
@@ -38,9 +38,9 @@ def download(entry, destination: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Install an approved Nova GGUF model")
-    parser.add_argument("--model", help="Registry model id; defaults to Nova's primary model")
-    parser.add_argument("--output", default="models/nova-assistant.gguf", help="Destination GGUF path")
+    parser = argparse.ArgumentParser(description="Install an approved RequantAi GGUF model")
+    parser.add_argument("--model", help="Registry model id; defaults to the truck-node model")
+    parser.add_argument("--output", default="models/trucklm-small.gguf", help="Destination GGUF path")
     parser.add_argument("--accept-license", action="store_true", help="Confirm you reviewed and accept the model license")
     parser.add_argument("--dry-run", action="store_true", help="Show the selected model without downloading")
     args = parser.parse_args()
@@ -73,7 +73,7 @@ def main() -> None:
     except Exception as exc:
         raise SystemExit(f"Model download failed safely: {exc}") from exc
     print(f"Installed and verified: {destination}")
-    print("Next: start llama.cpp and run Nova's model/healing health checks before enabling local_llm.")
+    print("Next: start llama.cpp and run the model/system-recovery checks before enabling local_llm.")
 
 
 if __name__ == "__main__":

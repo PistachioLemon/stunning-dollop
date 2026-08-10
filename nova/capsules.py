@@ -9,7 +9,7 @@ from typing import Any
 
 @dataclass(frozen=True)
 class CapsuleManifest:
-    """Description of a portable Nova knowledge/agent capsule.
+    """Description of a portable RequantAi knowledge/agent capsule.
 
     A capsule deliberately does not receive direct hardware access. It may
     request named capabilities, but the host permission broker decides what

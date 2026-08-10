@@ -1,66 +1,24 @@
 app:
-  name: Nova Protected Sandbox
+  name: RequantAi Dispatcher Sandbox
   host: 127.0.0.1
   port: 8788
-  timezone: America/Los_Angeles
   simulation: true
   data_dir: ./sandbox-data
-
-profile:
-  display_name: Sandbox User
-  emergency_pin: "2468"
-
-safety:
-  countdown_seconds: 10
-  require_confirmation: true
-  outbound_emergency_enabled: false
-  emergency_provider: disabled
-  trusted_contacts: []
-
-presence:
-  enabled: false
-
-voice:
-  enabled: false
-
+runtime:
+  profile: cpu_minimum
+  accelerator: none
+  require_accelerator: false
 local_llm:
   enabled: false
-  server_url: http://127.0.0.1:8080
-  model_path: ./models/nova-assistant.gguf
-  timeout_seconds: 45
-  max_tokens: 256
-  temperature: 0.3
-
+  model_path: ./models/trucklm-small.gguf
 learning:
-  enabled: true
   auto_training_enabled: false
-  training_timezone: America/Los_Angeles
-  training_hour: 1
-  training_minute: 0
-  occurrence_lookback_hours: 24
-  auto_select_event_types: []
-  auto_promote_model: false
-
-home_assistant:
-  enabled: false
-  base_url: http://127.0.0.1:8123
-  token_env: NOVA_SANDBOX_NO_TOKEN
-
-package_locker:
-  enabled: true
+telemetry:
   simulation: true
-  operator_pin: "8642"
-  gpio_pin: 17
-  active_high: true
-  unlock_seconds: 5
-  max_unlock_seconds: 10
-  require_courier_pin: true
-  minimum_verification_confidence: 0.80
-  auto_unlock_verified_delivery: true
-
-security_cameras:
-  enabled: true
-  simulation: true
-  recording_policy: events_only
-  retention_days: 1
-  minimum_event_confidence: 0.70
+  mqtt_enabled: false
+  gps_enabled: true
+  can_enabled: false
+  obd_enabled: false
+  reefer_enabled: false
+  load_sensors_enabled: false
+  cargo_vision_enabled: false

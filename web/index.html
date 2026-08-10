@@ -3,67 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>Nova Home AI</title>
+  <title>RequantAi Dispatcher</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
   <header>
-    <div>
-      <p class="eyebrow">REQUANTAI HOME</p>
-      <h1>Good day, <span id="person">Mom</span>.</h1>
-      <p id="clock">Nova is getting ready…</p>
-    </div>
-    <div class="status"><span></span> NOVA ONLINE</div>
+    <div><p class="eyebrow">REQUANTAI AI HAULING</p><h1>Dispatcher Operations</h1><p id="clock">Starting CPU-safe runtime…</p></div>
+    <div class="status"><span></span> <b id="systemStatus">CHECKING</b></div>
   </header>
-
   <main>
     <section class="hero card">
-      <div class="orb">N</div>
-      <div>
-        <h2>What can I help with?</h2>
-        <p id="reply">Tap a card or type a request. I’m right here.</p>
-        <div class="chat-row">
-          <input id="chat" aria-label="Ask Nova" placeholder="Ask Nova…">
-          <button id="send">Ask</button>
-        </div>
+      <div class="orb">R</div>
+      <div><h2>Exceptions first. Routine work stays automatic.</h2><p id="reply">Monitoring dispatch, trucks, compliance, cargo, and recovery.</p>
+        <div class="chat-row"><input id="chat" aria-label="Ask Dispatcher" placeholder="Ask about a load, truck, route, fault, or HOS…"><button id="send">Ask</button></div>
       </div>
     </section>
-
     <section class="grid">
-      <button class="tile medication" id="medicationBtn">
-        <span class="icon">✚</span><strong>Medication</strong><small id="medStatus">View today’s schedule</small>
-      </button>
-      <button class="tile" id="notesBtn">
-        <span class="icon">✎</span><strong>Family Notes</strong><small>Save a message or memory</small>
-      </button>
-      <button class="tile" id="homeBtn">
-        <span class="icon">⌂</span><strong>My Home</strong><small>Lights, climate, and scenes</small>
-      </button>
-      <button class="tile" id="checkinBtn">
-        <span class="icon">♥</span><strong>Daily Check-In</strong><small>Tell Nova how you feel</small>
-      </button>
-      <button class="tile package" id="packageBtn">
-        <span class="icon">▣</span><strong>Package Locker</strong><small id="lockerStatus">Checking secure locker…</small>
-      </button>
-      <button class="tile camera" id="cameraBtn">
-        <span class="icon">◉</span><strong>Security Cameras</strong><small id="cameraStatus">Checking camera system…</small>
-      </button>
-      <button class="tile" id="healingBtn">
-        <span class="icon">↻</span><strong>Self-Healing</strong><small id="healingStatus">Diagnostics ready · repairs gated</small>
-      </button>
-      <button class="tile" id="learningBtn">
-        <span class="icon">◎</span><strong>Learn / TruckLM</strong><small id="learningStatus">Learn now · train nightly at 1 AM Pacific</small>
-      </button>
+      <button class="tile" id="fleetBtn"><span class="icon">◆</span><strong>Fleet State</strong><small id="fleetStatus">Loading truck brains…</small></button>
+      <button class="tile" id="dispatchBtn"><span class="icon">↗</span><strong>Load Decisions</strong><small>Profit, deadhead, risk, and approval</small></button>
+      <button class="tile" id="telemetryBtn"><span class="icon">⌁</span><strong>Truck Telemetry</strong><small>GPS · CAN · OBD · reefer · load · MQTT</small></button>
+      <button class="tile" id="cargoBtn"><span class="icon">◉</span><strong>Cargo Vision</strong><small>Load securement and evidence status</small></button>
+      <button class="tile" id="healingBtn"><span class="icon">↻</span><strong>System Recovery</strong><small id="healingStatus">Diagnostics ready · execution gated</small></button>
+      <button class="tile" id="learningBtn"><span class="icon">◎</span><strong>Operational Learning</strong><small id="learningStatus">Review events · 1 AM acknowledged window</small></button>
     </section>
-
-    <button class="sos" id="sosBtn"><span>SOS</span><small>Press for emergency help</small></button>
   </main>
-
-  <dialog id="modal">
-    <button class="close" id="closeModal" aria-label="Close">×</button>
-    <div id="modalContent"></div>
-  </dialog>
-
+  <dialog id="modal"><button class="close" id="closeModal" aria-label="Close">×</button><div id="modalContent"></div></dialog>
   <script src="/assets/app.js"></script>
   <script src="/assets/healing-dashboard.js"></script>
   <script src="/assets/learning-dashboard.js"></script>

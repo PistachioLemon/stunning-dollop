@@ -18,7 +18,7 @@ class PackEntry:
 
 
 class KnowledgePack:
-    """Read Nova knowledge directly from a ZIP container without full extraction.
+    """Read RequantAi knowledge directly from a ZIP container without full extraction.
 
     Individual entries are decompressed on demand into memory. The archive is not
     unpacked to disk. This is intended for text/JSONL/manual chunks, not GGUF
@@ -84,11 +84,11 @@ def build_pack(
     pack_id: str,
     metadata: dict | None = None,
 ) -> Path:
-    """Build an independently readable Nova knowledge pack.
+    """Build an independently readable RequantAi knowledge pack.
 
     `files` contains (archive_name, source_path, kind). Each pack is a complete
     ZIP by itself. Large libraries should be split into multiple independent
-    packs instead of one traditional split-ZIP set, so Nova can mount/read any
+    packs instead of one traditional split-ZIP set, so the dispatcher can mount/read any
     pack without requiring all volume parts.
     """
     output = Path(output)

@@ -1,4 +1,4 @@
-name: Nova Test Suite
+name: RequantAi Dispatcher Test Suite
 
 on:
   push:
