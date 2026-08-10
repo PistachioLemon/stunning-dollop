@@ -11,9 +11,10 @@ from typing import Any
 class LearningService:
     """Stores operator-approved lessons and selected operational occurrences.
 
-    LEARN writes retrieval-ready knowledge. Selected daily occurrences can be
-    queued automatically for the nightly TruckLM candidate batch. The service
-    never promotes a trained candidate into production by itself.
+    LEARN writes retrieval-ready knowledge. Driver logoff produces a review
+    prompt so the operator can add missing particulars. At the nightly window,
+    Nova prepares a candidate batch that still requires explicit acknowledgement
+    before any training runner may start.
     """
 
     def __init__(self, path: str | Path):
@@ -49,16 +50,21 @@ class LearningService:
                 lesson_ids_json TEXT NOT NULL,
                 occurrence_ids_json TEXT NOT NULL DEFAULT '[]',
                 automatic INTEGER NOT NULL DEFAULT 0,
+                acknowledged INTEGER NOT NULL DEFAULT 0,
+                acknowledged_at TEXT,
                 created_at TEXT NOT NULL
             );
             """
         )
-        # Backward-compatible migration for databases created before occurrence batching.
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(training_batches)").fetchall()}
         if "occurrence_ids_json" not in columns:
             self.db.execute("ALTER TABLE training_batches ADD COLUMN occurrence_ids_json TEXT NOT NULL DEFAULT '[]'")
         if "automatic" not in columns:
             self.db.execute("ALTER TABLE training_batches ADD COLUMN automatic INTEGER NOT NULL DEFAULT 0")
+        if "acknowledged" not in columns:
+            self.db.execute("ALTER TABLE training_batches ADD COLUMN acknowledged INTEGER NOT NULL DEFAULT 0")
+        if "acknowledged_at" not in columns:
+            self.db.execute("ALTER TABLE training_batches ADD COLUMN acknowledged_at TEXT")
         self.db.commit()
 
     @staticmethod
@@ -143,6 +149,34 @@ class LearningService:
             raise KeyError("lesson not found")
         return {"id": lesson_id, "approved_for_training": approved}
 
+    def logoff_review(self, *, lookback_hours: int = 24) -> dict[str, Any]:
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=max(1, lookback_hours))).isoformat()
+        rows = self.db.execute(
+            """SELECT id, event_type, component, summary, selected_for_training
+            FROM occurrences WHERE created_at >= ? ORDER BY id DESC LIMIT 100""",
+            (cutoff,),
+        ).fetchall()
+        selected = [dict(row) for row in rows if row["selected_for_training"]]
+        unselected = [dict(row) for row in rows if not row["selected_for_training"]]
+        prompts = []
+        if selected:
+            prompts.append("Review today's selected events. Add corrections, causes, or better actions Nova should learn.")
+        if unselected:
+            prompts.append("Check whether any unselected event from today should be included in TruckLM training.")
+        if any(row["event_type"] in {"repair_failure", "load_exception", "receiving_exception"} for row in rows):
+            prompts.append("Explain any exception or failed repair whose real-world cause was not captured automatically.")
+        if any(row["event_type"] == "driver_correction" for row in rows):
+            prompts.append("Confirm the driver correction and the preferred future decision or wording.")
+        if not prompts:
+            prompts.append("Anything from today's driving, dispatch, loading, receiving, or equipment behavior Nova should remember?")
+        return {
+            "selected_occurrences": selected,
+            "unselected_occurrences": unselected,
+            "prompts": prompts,
+            "training_window": "1:00 AM America/Los_Angeles",
+            "acknowledgement_required": True,
+        }
+
     def create_training_batch(self, *, automatic: bool = False, lookback_hours: int = 24) -> dict[str, Any]:
         lesson_rows = self.db.execute("SELECT id FROM lessons WHERE approved_for_training = 1 ORDER BY id").fetchall()
         lesson_ids = [int(row[0]) for row in lesson_rows]
@@ -155,11 +189,11 @@ class LearningService:
         if not lesson_ids and not occurrence_ids:
             raise ValueError("no approved lessons or selected recent occurrences available for training")
         now = datetime.now(timezone.utc).isoformat()
-        status = "candidate_pending_offline_qlora"
+        status = "awaiting_operator_acknowledgement"
         cur = self.db.execute(
             """INSERT INTO training_batches
-            (status, lesson_ids_json, occurrence_ids_json, automatic, created_at)
-            VALUES (?, ?, ?, ?, ?)""",
+            (status, lesson_ids_json, occurrence_ids_json, automatic, acknowledged, created_at)
+            VALUES (?, ?, ?, ?, 0, ?)""",
             (status, json.dumps(lesson_ids), json.dumps(occurrence_ids), int(automatic), now),
         )
         self.db.commit()
@@ -169,8 +203,45 @@ class LearningService:
             "lesson_ids": lesson_ids,
             "occurrence_ids": occurrence_ids,
             "automatic": automatic,
+            "acknowledgement_required": True,
             "execution_started": False,
         }
+
+    def acknowledge_training_batch(self, batch_id: int) -> dict[str, Any]:
+        now = datetime.now(timezone.utc).isoformat()
+        row = self.db.execute("SELECT status FROM training_batches WHERE id = ?", (batch_id,)).fetchone()
+        if row is None:
+            raise KeyError("training batch not found")
+        if row["status"] not in {"awaiting_operator_acknowledgement", "approved_to_train"}:
+            raise ValueError(f"training batch cannot be acknowledged from status {row['status']}")
+        self.db.execute(
+            "UPDATE training_batches SET status = ?, acknowledged = 1, acknowledged_at = ? WHERE id = ?",
+            ("approved_to_train", now, batch_id),
+        )
+        self.db.commit()
+        return {
+            "batch_id": batch_id,
+            "status": "approved_to_train",
+            "acknowledged_at": now,
+            "execution_started": False,
+            "next_step": "training runner may start only after this acknowledgement",
+        }
+
+    def pending_training_batches(self, limit: int = 20) -> list[dict[str, Any]]:
+        rows = self.db.execute(
+            """SELECT id, status, lesson_ids_json, occurrence_ids_json, automatic,
+            acknowledged, acknowledged_at, created_at FROM training_batches
+            WHERE status IN ('awaiting_operator_acknowledgement', 'approved_to_train')
+            ORDER BY id DESC LIMIT ?""",
+            (max(1, min(limit, 100)),),
+        ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["lesson_ids"] = json.loads(item.pop("lesson_ids_json"))
+            item["occurrence_ids"] = json.loads(item.pop("occurrence_ids_json"))
+            result.append(item)
+        return result
 
     def stats(self) -> dict[str, int]:
         total = self.db.execute("SELECT COUNT(*) FROM lessons").fetchone()[0]
@@ -178,10 +249,12 @@ class LearningService:
         occurrences = self.db.execute("SELECT COUNT(*) FROM occurrences").fetchone()[0]
         selected = self.db.execute("SELECT COUNT(*) FROM occurrences WHERE selected_for_training = 1").fetchone()[0]
         batches = self.db.execute("SELECT COUNT(*) FROM training_batches").fetchone()[0]
+        awaiting = self.db.execute("SELECT COUNT(*) FROM training_batches WHERE status = 'awaiting_operator_acknowledgement'").fetchone()[0]
         return {
             "lessons": int(total),
             "approved_for_training": int(approved),
             "occurrences": int(occurrences),
             "selected_occurrences": int(selected),
             "training_batches": int(batches),
+            "awaiting_acknowledgement": int(awaiting),
         }
