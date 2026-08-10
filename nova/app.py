@@ -12,6 +12,7 @@ from .agents import AGENTS, AgentRouter
 from .config import load_config
 from .database import Database
 from .emergency import EmergencyService
+from .healing.runtime import HealingRuntime
 from .home_assistant import HomeAssistantClient
 from .local_llm import LocalLLM
 from .package_guardian import PackageGuardian
@@ -50,6 +51,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
     package_guardian = PackageGuardian(database, config)
     local_llm = LocalLLM(config)
     security_cameras = SecurityCameraService(database, config)
+    healing_runtime = HealingRuntime(config["_config_path"])
     router = AgentRouter()
 
     @asynccontextmanager
@@ -66,6 +68,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
     app.state.emergency = emergency
     app.state.package_guardian = package_guardian
     app.state.security_cameras = security_cameras
+    app.state.healing_runtime = healing_runtime
     static_dir = project_root / "web"
     app.mount("/assets", StaticFiles(directory=static_dir), name="assets")
 
@@ -85,7 +88,18 @@ def create_app(config_path: str | None = None) -> FastAPI:
             "package_locker": package_guardian.status(),
             "local_llm": local_llm.status(),
             "security_cameras": security_cameras.status(),
+            "self_healing": {
+                "diagnostics_enabled": True,
+                "execution_enabled": False,
+            },
         }
+
+    @app.get("/api/healing/status")
+    def healing_status():
+        try:
+            return healing_runtime.diagnose()
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=f"Self-healing diagnostics unavailable: {exc}") from exc
 
     @app.get("/api/agents")
     def agents():
