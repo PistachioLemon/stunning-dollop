@@ -51,7 +51,7 @@ Nova's main touchscreen/web UI now includes a **Self-Healing** tile. It calls th
 - knowledge items loaded
 - whether repair execution is enabled or gated
 
-The dashboard escapes diagnostic/log content before rendering it and does not expose a repair-execution button. Its refresh action only reruns diagnostics.
+The dashboard escapes diagnostic/log content before rendering it and does not expose a repair-execution button. Its refresh action only reruns diagnostics. `/api/health` also advertises the current self-healing safety state so other clients can see that diagnostics are enabled while repair execution remains disabled.
 
 ## Portable Nova capsules
 
@@ -70,6 +70,10 @@ A GitHub Actions workflow is present to validate the protected-sandbox configura
 ## Current safety state
 
 Diagnostics and the operator dashboard are wired into the Nova app. Production repair execution remains intentionally gated. The branch should stay separate from `main` until CI passes and the real host callbacks are tested against the protected sandbox.
+
+## Current branch scope
+
+As of the latest update, the draft pull request contains 25 changed files and more than 1,500 added lines spanning portable capsules, self-healing control, Repair Librarian, evidence adapters, low-risk handler scaffolding, dashboard/API wiring, tests, documentation, and CI configuration.
 
 ## Next engineering gates
 
