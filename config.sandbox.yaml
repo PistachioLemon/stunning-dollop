@@ -31,6 +31,16 @@ local_llm:
   max_tokens: 256
   temperature: 0.3
 
+learning:
+  enabled: true
+  auto_training_enabled: false
+  training_timezone: America/Los_Angeles
+  training_hour: 1
+  training_minute: 0
+  occurrence_lookback_hours: 24
+  auto_select_event_types: []
+  auto_promote_model: false
+
 home_assistant:
   enabled: false
   base_url: http://127.0.0.1:8123
