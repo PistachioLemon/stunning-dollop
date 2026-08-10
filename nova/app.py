@@ -14,6 +14,8 @@ from .database import Database
 from .emergency import EmergencyService
 from .healing.runtime import HealingRuntime
 from .home_assistant import HomeAssistantClient
+from .learning import LearningService
+from .learning_routes import build_learning_router
 from .local_llm import LocalLLM
 from .package_guardian import PackageGuardian
 from .presence import PresenceService
@@ -44,6 +46,8 @@ def create_app(config_path: str | None = None) -> FastAPI:
     data_dir = Path(config["app"]["data_dir"])
     if not data_dir.is_absolute():
         data_dir = project_root / data_dir
+    data_dir.mkdir(parents=True, exist_ok=True)
+
     database = Database(data_dir / "nova.db")
     emergency = EmergencyService(database, config)
     home = HomeAssistantClient(config)
@@ -52,6 +56,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
     local_llm = LocalLLM(config)
     security_cameras = SecurityCameraService(database, config)
     healing_runtime = HealingRuntime(config["_config_path"])
+    learning_service = LearningService(data_dir / "learning.db")
     router = AgentRouter()
 
     @asynccontextmanager
@@ -69,6 +74,9 @@ def create_app(config_path: str | None = None) -> FastAPI:
     app.state.package_guardian = package_guardian
     app.state.security_cameras = security_cameras
     app.state.healing_runtime = healing_runtime
+    app.state.learning_service = learning_service
+    app.include_router(build_learning_router(learning_service))
+
     static_dir = project_root / "web"
     app.mount("/assets", StaticFiles(directory=static_dir), name="assets")
 
@@ -88,10 +96,8 @@ def create_app(config_path: str | None = None) -> FastAPI:
             "package_locker": package_guardian.status(),
             "local_llm": local_llm.status(),
             "security_cameras": security_cameras.status(),
-            "self_healing": {
-                "diagnostics_enabled": True,
-                "execution_enabled": False,
-            },
+            "self_healing": {"diagnostics_enabled": True, "execution_enabled": False},
+            "learning": {**learning_service.stats(), "weight_mutation_enabled": False},
         }
 
     @app.get("/api/healing/status")
@@ -175,7 +181,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
     def control_home(request: HomeControl):
         try:
             result = home.call_service(request.domain, request.service, request.entity_id)
-        except (RuntimeError, Exception) as exc:
+        except Exception as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         database.event("home_control", request.model_dump())
         return result
@@ -188,12 +194,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
     def add_package(request: PackageCreate):
         try:
             package_guardian.require_authorized(request.operator_pin)
-            delivery_id = package_guardian.add_expected_delivery(
-                request.carrier,
-                request.tracking_code,
-                request.recipient,
-                request.courier_pin,
-            )
+            delivery_id = package_guardian.add_expected_delivery(request.carrier, request.tracking_code, request.recipient, request.courier_pin)
         except PermissionError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except ValueError as exc:
@@ -203,12 +204,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
     @app.post("/api/packages/verify")
     def verify_package(request: PackageVerify):
         try:
-            return package_guardian.verify_delivery(
-                request.tracking_code,
-                request.courier_pin,
-                request.confidence,
-                request.evidence_sha256,
-            )
+            return package_guardian.verify_delivery(request.tracking_code, request.courier_pin, request.confidence, request.evidence_sha256)
         except PermissionError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except KeyError as exc:
@@ -217,12 +213,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
     @app.post("/api/packages/{delivery_id}/access-code", status_code=201)
     def create_package_access_code(delivery_id: int, request: PackageCodeCreate):
         try:
-            return package_guardian.generate_access_code(
-                delivery_id,
-                request.operator_pin,
-                request.code_type,
-                request.expires_minutes,
-            )
+            return package_guardian.generate_access_code(delivery_id, request.operator_pin, request.code_type, request.expires_minutes)
         except PermissionError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except KeyError as exc:
@@ -265,22 +256,12 @@ def create_app(config_path: str | None = None) -> FastAPI:
 
     @app.get("/api/security-cameras")
     def list_security_cameras():
-        return {
-            "status": security_cameras.status(),
-            "cameras": database.security_cameras(),
-            "events": database.camera_events(50),
-        }
+        return {"status": security_cameras.status(), "cameras": database.security_cameras(), "events": database.camera_events(50)}
 
     @app.post("/api/security-cameras", status_code=201)
     def add_security_camera(request: SecurityCameraCreate):
         try:
-            camera_id = security_cameras.add_camera(
-                request.name,
-                request.kind,
-                request.room,
-                request.connection,
-                request.stream_url,
-            )
+            camera_id = security_cameras.add_camera(request.name, request.kind, request.room, request.connection, request.stream_url)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"id": camera_id}
@@ -301,9 +282,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
     @app.post("/api/security-cameras/{camera_id}/events", status_code=201)
     def add_security_camera_event(camera_id: int, request: SecurityCameraEventCreate):
         try:
-            event_id = security_cameras.record_event(
-                camera_id, request.event_type, request.confidence, request.description
-            )
+            event_id = security_cameras.record_event(camera_id, request.event_type, request.confidence, request.description)
         except PermissionError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except KeyError as exc:
