@@ -97,20 +97,3 @@ class PackageCodeCreate(BaseModel):
 
 class PackageCodeScan(BaseModel):
     code: str = Field(min_length=16, max_length=300)
-
-class SecurityCameraCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    kind: str = Field(pattern=r"^(indoor|outdoor|doorbell|driveway|locker)$")
-    room: str = Field(min_length=1, max_length=100)
-    connection: str = Field(pattern=r"^(simulation|home_assistant|rtsp|onvif)$")
-    stream_url: str | None = Field(default=None, max_length=2000)
-
-
-class SecurityCameraEventCreate(BaseModel):
-    event_type: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_.:-]+$")
-    confidence: float = Field(ge=0.0, le=1.0)
-    description: str = Field(min_length=1, max_length=1000)
-
-
-class SecurityCameraPrivacy(BaseModel):
-    enabled: bool
