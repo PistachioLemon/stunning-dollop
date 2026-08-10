@@ -29,6 +29,20 @@ class ChatRequest(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
 
 
+class LearnCapture(BaseModel):
+    mode: str = Field(pattern=r"^(page|selection|document|screen_lesson|manual)$")
+    title: str = Field(min_length=1, max_length=200)
+    content: str = Field(min_length=1, max_length=250000)
+    source_url: str | None = Field(default=None, max_length=2000)
+    operator_notes: str | None = Field(default=None, max_length=8000)
+    trust: int = Field(default=60, ge=0, le=100)
+    approve_for_training: bool = False
+
+
+class LessonApproval(BaseModel):
+    approved: bool = True
+
+
 class HomeControl(BaseModel):
     domain: str = Field(pattern=r"^[a-z_]+$")
     service: str = Field(pattern=r"^[a-z_]+$")
