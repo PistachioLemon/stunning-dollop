@@ -54,6 +54,24 @@ DEFAULTS: dict[str, Any] = {
             "action occurred unless Nova's verified tools report that it occurred."
         ),
     },
+    "learning": {
+        "enabled": True,
+        "auto_training_enabled": True,
+        "training_timezone": "America/Los_Angeles",
+        "training_hour": 1,
+        "training_minute": 0,
+        "occurrence_lookback_hours": 24,
+        "auto_select_event_types": [
+            "repair_success",
+            "repair_failure",
+            "dispatch_decision",
+            "load_exception",
+            "receiving_exception",
+            "driver_correction",
+            "operator_teach",
+        ],
+        "auto_promote_model": False,
+    },
     "home_assistant": {
         "enabled": False,
         "base_url": "http://homeassistant.local:8123",
@@ -140,6 +158,15 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("local_llm.timeout_seconds must be positive")
     if not isinstance(llm["max_tokens"], int) or not 16 <= llm["max_tokens"] <= 4096:
         raise ValueError("local_llm.max_tokens must be from 16 to 4096")
+    learning = config["learning"]
+    if not isinstance(learning["training_hour"], int) or not 0 <= learning["training_hour"] <= 23:
+        raise ValueError("learning.training_hour must be from 0 to 23")
+    if not isinstance(learning["training_minute"], int) or not 0 <= learning["training_minute"] <= 59:
+        raise ValueError("learning.training_minute must be from 0 to 59")
+    if not isinstance(learning["occurrence_lookback_hours"], int) or not 1 <= learning["occurrence_lookback_hours"] <= 168:
+        raise ValueError("learning.occurrence_lookback_hours must be from 1 to 168")
+    if learning.get("auto_promote_model"):
+        raise ValueError("learning.auto_promote_model is intentionally unsupported; candidates require evaluation before promotion")
     cameras = config["security_cameras"]
     if cameras["recording_policy"] not in {"off", "events_only", "continuous"}:
         raise ValueError("security_cameras.recording_policy is invalid")
