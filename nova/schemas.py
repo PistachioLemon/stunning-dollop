@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -41,6 +43,18 @@ class LearnCapture(BaseModel):
 
 class LessonApproval(BaseModel):
     approved: bool = True
+
+
+class OccurrenceCapture(BaseModel):
+    event_type: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_.:-]+$")
+    component: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_.:-]+$")
+    summary: str = Field(min_length=1, max_length=4000)
+    payload: dict[str, Any] = Field(default_factory=dict)
+    selected_for_training: bool = False
+
+
+class OccurrenceSelection(BaseModel):
+    selected: bool = True
 
 
 class HomeControl(BaseModel):
