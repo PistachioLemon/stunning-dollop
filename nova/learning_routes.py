@@ -1,9 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+import json
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from .learning import LearningService
 from .schemas import LearnCapture, LessonApproval, OccurrenceCapture, OccurrenceSelection
+
+
+MAX_SCREEN_RECORDING_BYTES = 100 * 1024 * 1024
 
 
 def build_learning_router(service: LearningService, scheduler=None) -> APIRouter:
@@ -36,6 +43,46 @@ def build_learning_router(service: LearningService, scheduler=None) -> APIRouter
             return service.learn(**request.model_dump())
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.post("/screen-recording", status_code=201)
+    async def screen_recording(
+        recording: UploadFile = File(...),
+        title: str = Form("Operator screen lesson"),
+        operator_notes: str = Form(""),
+        approve_for_training: bool = Form(False),
+    ):
+        media_dir = Path(service.path).resolve().parent / "learning-media"
+        media_dir.mkdir(parents=True, exist_ok=True)
+        suffix = ".webm" if "webm" in (recording.content_type or "") else ".bin"
+        target = media_dir / f"screen-{uuid.uuid4().hex}{suffix}"
+        total = 0
+        try:
+            with target.open("wb") as output:
+                while True:
+                    chunk = await recording.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > MAX_SCREEN_RECORDING_BYTES:
+                        raise HTTPException(status_code=413, detail="screen lesson exceeds 100 MB limit")
+                    output.write(chunk)
+        except Exception:
+            target.unlink(missing_ok=True)
+            raise
+        lesson = service.learn(
+            mode="screen_lesson",
+            title=title,
+            content=json.dumps({
+                "media_path": str(target),
+                "bytes": total,
+                "content_type": recording.content_type,
+                "processing_state": "pending_audio_visual_extraction",
+            }),
+            operator_notes=operator_notes,
+            trust=70,
+            approve_for_training=approve_for_training,
+        )
+        return {"lesson": lesson, "media_saved": True, "processing_state": "pending_audio_visual_extraction"}
 
     @router.post("/occurrences", status_code=201)
     def record_occurrence(request: OccurrenceCapture):
