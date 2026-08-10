@@ -41,6 +41,18 @@ These handlers are callback-based and require a sandbox check before execution. 
 
 This keeps the repair surface small and prevents the language model from inventing shell commands.
 
+## Self-Healing Dashboard
+
+Nova's main touchscreen/web UI now includes a **Self-Healing** tile. It calls the read-only `/api/healing/status` endpoint and shows:
+
+- current probe health
+- detected failure signatures
+- high-trust Repair Librarian proposals
+- knowledge items loaded
+- whether repair execution is enabled or gated
+
+The dashboard escapes diagnostic/log content before rendering it and does not expose a repair-execution button. Its refresh action only reruns diagnostics.
+
 ## Portable Nova capsules
 
 Portable capsules can carry model references, offline knowledge, system instructions, and requested capabilities. A default-deny permission broker controls whether the host grants any requested tool access.
@@ -53,17 +65,17 @@ Nova records repair attempts in SQLite so successful fixes can be prioritized wh
 
 ## Continuous validation
 
-A GitHub Actions workflow now validates the protected-sandbox configuration and runs the complete pytest suite for pushes and pull requests involving this branch.
+A GitHub Actions workflow is present to validate the protected-sandbox configuration and run the complete pytest suite for pushes and pull requests involving this branch. No completed Actions run has been reported for the latest branch commits yet, so CI should still be treated as pending.
 
 ## Current safety state
 
-The architecture supports real low-risk host handlers, but production execution remains intentionally gated. The branch should stay separate from `main` until CI passes and the real host callbacks are tested against the protected sandbox.
+Diagnostics and the operator dashboard are wired into the Nova app. Production repair execution remains intentionally gated. The branch should stay separate from `main` until CI passes and the real host callbacks are tested against the protected sandbox.
 
 ## Next engineering gates
 
 1. Confirm the full GitHub Actions test suite passes.
 2. Connect MQTT reconnect to Nova's actual MQTT client implementation.
 3. Connect llama.cpp restart to the installed local service manager without exposing arbitrary command execution.
-4. Add post-repair health verification and failure telemetry to the Nova dashboard.
-5. Add an operator-facing self-healing status page showing findings, proposed repairs, execution state, rollback events, and repair-memory scores.
+4. Add post-repair telemetry and repair-memory scoring to the dashboard.
+5. Test real low-risk handlers inside the protected sandbox.
 6. Only after those checks, review the branch for merge into `main`.
