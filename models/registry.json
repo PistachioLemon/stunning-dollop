@@ -1,21 +1,32 @@
 {
   "schema_version": 1,
-  "default_model": "qwen2.5-1.5b-instruct-q4_k_m",
+  "default_model": "smollm2-360m-instruct-q4_k_m",
   "models": [
+    {
+      "id": "smollm2-360m-instruct-q4_k_m",
+      "name": "SmolLM2 360M Instruct Q4_K_M",
+      "provider": "HuggingFaceTB",
+      "repo_id": "HuggingFaceTB/SmolLM2-360M-Instruct-GGUF",
+      "filename": "smollm2-360m-instruct-q4_k_m.gguf",
+      "license": "Apache-2.0",
+      "parameters_billion": 0.36,
+      "quantization": "Q4_K_M",
+      "role": "primary_trucklm_base",
+      "approved": true,
+      "notes": "Primary compact base for Requant TruckLM specialization. Keep the always-loaded truck brain small and use retrieval/tools for detailed current knowledge."
+    },
     {
       "id": "qwen2.5-1.5b-instruct-q4_k_m",
       "name": "Qwen2.5 1.5B Instruct Q4_K_M",
       "provider": "Qwen",
       "repo_id": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
       "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-      "llama_hf_ref": "Qwen/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M",
       "license": "Apache-2.0",
       "parameters_billion": 1.5,
       "quantization": "Q4_K_M",
-      "approx_size_bytes": 1120000000,
-      "role": "primary",
+      "role": "benchmark_reference",
       "approved": true,
-      "notes": "Primary Nova candidate for local instruction following, structured diagnostic summaries, and Repair Librarian reasoning."
+      "notes": "Quality benchmark and optional PC/HQ model; not preferred as the permanent truck-node model due to footprint."
     },
     {
       "id": "smollm2-1.7b-instruct-q4_k_m",
@@ -23,29 +34,12 @@
       "provider": "HuggingFaceTB",
       "repo_id": "HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF",
       "filename": "smollm2-1.7b-instruct-q4_k_m.gguf",
-      "llama_hf_ref": "HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF:Q4_K_M",
       "license": "Apache-2.0",
       "parameters_billion": 1.7,
       "quantization": "Q4_K_M",
-      "approx_size_bytes": 1060000000,
-      "role": "fallback",
-      "approved": true,
-      "notes": "Fallback comparison model for on-device testing."
-    },
-    {
-      "id": "gemma-3-1b-it-q4_k_m",
-      "name": "Gemma 3 1B IT Q4_K_M",
-      "provider": "ggml-org / Google Gemma",
-      "repo_id": "ggml-org/gemma-3-1b-it-GGUF",
-      "filename": "gemma-3-1b-it-Q4_K_M.gguf",
-      "llama_hf_ref": "ggml-org/gemma-3-1b-it-GGUF:Q4_K_M",
-      "license": "Gemma",
-      "parameters_billion": 1.0,
-      "quantization": "Q4_K_M",
-      "approx_size_bytes": 806000000,
-      "role": "experimental",
+      "role": "hq_optional",
       "approved": false,
-      "notes": "Lightweight evaluation candidate. Keep disabled by default because its license differs from Nova's Apache-2.0 project license."
+      "notes": "Optional larger comparison model for HQ/desktop evaluation only."
     }
   ]
 }
