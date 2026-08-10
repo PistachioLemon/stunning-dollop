@@ -87,7 +87,11 @@ def create_app(config_path: str | None = None) -> FastAPI:
     app.state.healing_runtime = healing_runtime
     app.state.learning_service = learning_service
     app.state.training_scheduler = training_scheduler
-    app.include_router(build_learning_router(learning_service, training_scheduler))
+    app.include_router(build_learning_router(
+        learning_service,
+        training_scheduler,
+        learning_cfg.get("auto_select_event_types", []),
+    ))
 
     static_dir = project_root / "web"
     app.mount("/assets", StaticFiles(directory=static_dir), name="assets")
