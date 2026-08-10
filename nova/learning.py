@@ -13,8 +13,7 @@ class LearningService:
 
     LEARN writes retrieval-ready knowledge. Driver logoff produces a review
     prompt so the operator can add missing particulars. At the nightly window,
-    Nova prepares a candidate batch that still requires explicit acknowledgement
-    before any training runner may start.
+    Nova prepares or releases a candidate batch only after explicit acknowledgement.
     """
 
     def __init__(self, path: str | Path):
@@ -72,17 +71,9 @@ class LearningService:
         compact = "\n".join(line.strip() for line in text.replace("\r", "\n").split("\n") if line.strip())
         return compact[:limit]
 
-    def learn(
-        self,
-        *,
-        mode: str,
-        title: str,
-        content: str,
-        source_url: str | None = None,
-        operator_notes: str | None = None,
-        trust: int = 60,
-        approve_for_training: bool = False,
-    ) -> dict[str, Any]:
+    def learn(self, *, mode: str, title: str, content: str, source_url: str | None = None,
+              operator_notes: str | None = None, trust: int = 60,
+              approve_for_training: bool = False) -> dict[str, Any]:
         if mode not in {"page", "selection", "document", "screen_lesson", "manual"}:
             raise ValueError("unsupported learning mode")
         clean = self._clean(content)
@@ -102,15 +93,9 @@ class LearningService:
         row = self.db.execute("SELECT * FROM lessons WHERE lesson_sha256 = ?", (digest,)).fetchone()
         return dict(row)
 
-    def record_occurrence(
-        self,
-        *,
-        event_type: str,
-        component: str,
-        summary: str,
-        payload: dict[str, Any] | None = None,
-        selected_for_training: bool = False,
-    ) -> dict[str, Any]:
+    def record_occurrence(self, *, event_type: str, component: str, summary: str,
+                          payload: dict[str, Any] | None = None,
+                          selected_for_training: bool = False) -> dict[str, Any]:
         now = datetime.now(timezone.utc).isoformat()
         cur = self.db.execute(
             """INSERT INTO occurrences
@@ -119,7 +104,8 @@ class LearningService:
             (event_type[:80], component[:80], self._clean(summary, 4000), json.dumps(payload or {}, sort_keys=True), int(selected_for_training), now),
         )
         self.db.commit()
-        return {"id": cur.lastrowid, "event_type": event_type, "component": component, "selected_for_training": selected_for_training, "created_at": now}
+        return {"id": cur.lastrowid, "event_type": event_type, "component": component,
+                "selected_for_training": selected_for_training, "created_at": now}
 
     def select_occurrence(self, occurrence_id: int, selected: bool = True) -> dict[str, Any]:
         cur = self.db.execute("UPDATE occurrences SET selected_for_training = ? WHERE id = ?", (int(selected), occurrence_id))
@@ -224,14 +210,35 @@ class LearningService:
             "status": "approved_to_train",
             "acknowledged_at": now,
             "execution_started": False,
-            "next_step": "training runner may start only after this acknowledgement",
+            "next_step": "wait for the 1 AM Pacific training window",
+        }
+
+    def release_acknowledged_batch_for_training(self) -> dict[str, Any]:
+        row = self.db.execute(
+            """SELECT id FROM training_batches
+            WHERE status = 'approved_to_train' AND acknowledged = 1
+            ORDER BY id DESC LIMIT 1"""
+        ).fetchone()
+        if row is None:
+            raise ValueError("no operator-acknowledged TruckLM batch is ready for the 1 AM window")
+        batch_id = int(row["id"])
+        self.db.execute(
+            "UPDATE training_batches SET status = ? WHERE id = ?",
+            ("ready_for_training_runner", batch_id),
+        )
+        self.db.commit()
+        return {
+            "batch_id": batch_id,
+            "status": "ready_for_training_runner",
+            "execution_started": False,
+            "note": "1 AM window reached; an installed QLoRA runner may now execute this acknowledged batch",
         }
 
     def pending_training_batches(self, limit: int = 20) -> list[dict[str, Any]]:
         rows = self.db.execute(
             """SELECT id, status, lesson_ids_json, occurrence_ids_json, automatic,
             acknowledged, acknowledged_at, created_at FROM training_batches
-            WHERE status IN ('awaiting_operator_acknowledgement', 'approved_to_train')
+            WHERE status IN ('awaiting_operator_acknowledgement', 'approved_to_train', 'ready_for_training_runner')
             ORDER BY id DESC LIMIT ?""",
             (max(1, min(limit, 100)),),
         ).fetchall()
