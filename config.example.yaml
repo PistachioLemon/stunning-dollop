@@ -44,6 +44,27 @@ local_llm:
     emergency call, door unlock, medication record, message, or device action
     occurred unless Nova's verified tools report that it occurred.
 
+# Nova collects operator-approved lessons plus selected operational occurrences
+# during the day. At 1:00 AM Pacific it automatically queues a TruckLM QLoRA
+# candidate batch. The active GGUF is never auto-promoted; the candidate must
+# pass evaluation before an operator-approved promotion.
+learning:
+  enabled: true
+  auto_training_enabled: true
+  training_timezone: America/Los_Angeles
+  training_hour: 1
+  training_minute: 0
+  occurrence_lookback_hours: 24
+  auto_select_event_types:
+    - repair_success
+    - repair_failure
+    - dispatch_decision
+    - load_exception
+    - receiving_exception
+    - driver_correction
+    - operator_teach
+  auto_promote_model: false
+
 home_assistant:
   enabled: false
   base_url: http://homeassistant.local:8123
