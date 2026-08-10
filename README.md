@@ -3,6 +3,12 @@
 Nova PC is a local, offline-first home-assistant desktop app for Windows 10/11.
 It is created by **LaBrone Gaines** and distributed under Apache-2.0.
 
+## Experimental upgrade branch
+
+The active self-healing, Repair Librarian, portable-capsule, live-evidence, and operator-dashboard work is being developed on `feature/nova-portable-capsules` and is **not merged into `main` yet**. See `docs/UPGRADES.md` on that branch for the current upgrade map and safety gates.
+
+The experimental UI now includes a **Self-Healing** tile backed by a read-only diagnostics endpoint. It can show current health findings and high-trust repair proposals, but production repair execution remains gated while the handlers and CI are validated.
+
 ## What is included
 
 - Native movable desktop window powered by a local FastAPI service
