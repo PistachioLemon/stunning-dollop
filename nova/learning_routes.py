@@ -13,8 +13,9 @@ from .schemas import LearnCapture, LessonApproval, OccurrenceCapture, Occurrence
 MAX_SCREEN_RECORDING_BYTES = 100 * 1024 * 1024
 
 
-def build_learning_router(service: LearningService, scheduler=None) -> APIRouter:
+def build_learning_router(service: LearningService, scheduler=None, auto_select_event_types=None) -> APIRouter:
     router = APIRouter(prefix="/api/learning", tags=["learning"])
+    auto_select = set(auto_select_event_types or [])
 
     @router.get("/status")
     def status():
@@ -23,6 +24,7 @@ def build_learning_router(service: LearningService, scheduler=None) -> APIRouter
             "learn_writes_weights": False,
             "nightly_training": True,
             "auto_promote_model": False,
+            "auto_select_event_types": sorted(auto_select),
             "policy": "learn immediately; selected lessons/occurrences batch automatically at 1 AM Pacific; promotion remains evaluated",
         }
         if scheduler is not None:
@@ -86,7 +88,11 @@ def build_learning_router(service: LearningService, scheduler=None) -> APIRouter
 
     @router.post("/occurrences", status_code=201)
     def record_occurrence(request: OccurrenceCapture):
-        return service.record_occurrence(**request.model_dump())
+        payload = request.model_dump()
+        payload["selected_for_training"] = bool(
+            request.selected_for_training or request.event_type in auto_select
+        )
+        return service.record_occurrence(**payload)
 
     @router.post("/lessons/{lesson_id}/approval")
     def approve(lesson_id: int, request: LessonApproval):
