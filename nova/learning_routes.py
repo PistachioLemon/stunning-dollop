@@ -34,7 +34,8 @@ def build_learning_router(service: LearningService, scheduler=None, auto_select_
             "nightly_training": True,
             "auto_promote_model": False,
             "auto_select_event_types": sorted(auto_select),
-            "policy": "learn immediately; selected lessons/occurrences batch automatically at 1 AM Pacific; promotion remains evaluated",
+            "policy": "driver logoff opens review; operator acknowledges a batch; acknowledged training is released at 1 AM Pacific",
+            "pending_batches": service.pending_training_batches(),
         }
         if scheduler is not None:
             payload["schedule"] = scheduler.status()
@@ -47,6 +48,12 @@ def build_learning_router(service: LearningService, scheduler=None, auto_select_
     @router.get("/occurrences")
     def occurrences(limit: int = 100):
         return service.occurrences(limit)
+
+    @router.post("/driver-logoff")
+    def driver_logoff():
+        if scheduler is None:
+            return {"status": "review_required", **service.logoff_review()}
+        return scheduler.driver_logged_off(verified=True)
 
     @router.post("/learn", status_code=201)
     def learn(request: LearnCapture):
@@ -121,6 +128,15 @@ def build_learning_router(service: LearningService, scheduler=None, auto_select_
     def create_training_batch():
         try:
             return service.create_training_batch(automatic=False)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/training-batches/{batch_id}/acknowledge")
+    def acknowledge_training_batch(batch_id: int):
+        try:
+            return service.acknowledge_training_batch(batch_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
