@@ -3,17 +3,17 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 
 class LearningService:
-    """Stores operator-approved lessons without mutating model weights.
+    """Stores operator-approved lessons and selected operational occurrences.
 
-    LEARN writes retrieval-ready knowledge and training candidates. TRAIN creates
-    a candidate batch manifest only; a separate offline QLoRA job must consume,
-    evaluate, and explicitly promote that batch.
+    LEARN writes retrieval-ready knowledge. Selected daily occurrences can be
+    queued automatically for the nightly TruckLM candidate batch. The service
+    never promotes a trained candidate into production by itself.
     """
 
     def __init__(self, path: str | Path):
@@ -34,14 +34,31 @@ class LearningService:
                 approved_for_training INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS occurrences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT NOT NULL,
+                component TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                selected_for_training INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS training_batches (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 status TEXT NOT NULL,
                 lesson_ids_json TEXT NOT NULL,
+                occurrence_ids_json TEXT NOT NULL DEFAULT '[]',
+                automatic INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
             );
             """
         )
+        # Backward-compatible migration for databases created before occurrence batching.
+        columns = {row[1] for row in self.db.execute("PRAGMA table_info(training_batches)").fetchall()}
+        if "occurrence_ids_json" not in columns:
+            self.db.execute("ALTER TABLE training_batches ADD COLUMN occurrence_ids_json TEXT NOT NULL DEFAULT '[]'")
+        if "automatic" not in columns:
+            self.db.execute("ALTER TABLE training_batches ADD COLUMN automatic INTEGER NOT NULL DEFAULT 0")
         self.db.commit()
 
     @staticmethod
@@ -79,9 +96,42 @@ class LearningService:
         row = self.db.execute("SELECT * FROM lessons WHERE lesson_sha256 = ?", (digest,)).fetchone()
         return dict(row)
 
+    def record_occurrence(
+        self,
+        *,
+        event_type: str,
+        component: str,
+        summary: str,
+        payload: dict[str, Any] | None = None,
+        selected_for_training: bool = False,
+    ) -> dict[str, Any]:
+        now = datetime.now(timezone.utc).isoformat()
+        cur = self.db.execute(
+            """INSERT INTO occurrences
+            (event_type, component, summary, payload_json, selected_for_training, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)""",
+            (event_type[:80], component[:80], self._clean(summary, 4000), json.dumps(payload or {}, sort_keys=True), int(selected_for_training), now),
+        )
+        self.db.commit()
+        return {"id": cur.lastrowid, "event_type": event_type, "component": component, "selected_for_training": selected_for_training, "created_at": now}
+
+    def select_occurrence(self, occurrence_id: int, selected: bool = True) -> dict[str, Any]:
+        cur = self.db.execute("UPDATE occurrences SET selected_for_training = ? WHERE id = ?", (int(selected), occurrence_id))
+        self.db.commit()
+        if not cur.rowcount:
+            raise KeyError("occurrence not found")
+        return {"id": occurrence_id, "selected_for_training": selected}
+
     def lessons(self, limit: int = 100) -> list[dict[str, Any]]:
         rows = self.db.execute(
             "SELECT id, lesson_sha256, mode, title, source_url, trust, approved_for_training, created_at FROM lessons ORDER BY id DESC LIMIT ?",
+            (max(1, min(limit, 500)),),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def occurrences(self, limit: int = 100) -> list[dict[str, Any]]:
+        rows = self.db.execute(
+            "SELECT id, event_type, component, summary, selected_for_training, created_at FROM occurrences ORDER BY id DESC LIMIT ?",
             (max(1, min(limit, 500)),),
         ).fetchall()
         return [dict(row) for row in rows]
@@ -93,21 +143,45 @@ class LearningService:
             raise KeyError("lesson not found")
         return {"id": lesson_id, "approved_for_training": approved}
 
-    def create_training_batch(self) -> dict[str, Any]:
-        rows = self.db.execute("SELECT id FROM lessons WHERE approved_for_training = 1 ORDER BY id").fetchall()
-        ids = [int(row[0]) for row in rows]
-        if not ids:
-            raise ValueError("no approved lessons available for training")
+    def create_training_batch(self, *, automatic: bool = False, lookback_hours: int = 24) -> dict[str, Any]:
+        lesson_rows = self.db.execute("SELECT id FROM lessons WHERE approved_for_training = 1 ORDER BY id").fetchall()
+        lesson_ids = [int(row[0]) for row in lesson_rows]
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=max(1, lookback_hours))).isoformat()
+        occurrence_rows = self.db.execute(
+            "SELECT id FROM occurrences WHERE selected_for_training = 1 AND created_at >= ? ORDER BY id",
+            (cutoff,),
+        ).fetchall()
+        occurrence_ids = [int(row[0]) for row in occurrence_rows]
+        if not lesson_ids and not occurrence_ids:
+            raise ValueError("no approved lessons or selected recent occurrences available for training")
         now = datetime.now(timezone.utc).isoformat()
+        status = "candidate_pending_offline_qlora"
         cur = self.db.execute(
-            "INSERT INTO training_batches(status, lesson_ids_json, created_at) VALUES (?, ?, ?)",
-            ("candidate_pending_offline_qlora", json.dumps(ids), now),
+            """INSERT INTO training_batches
+            (status, lesson_ids_json, occurrence_ids_json, automatic, created_at)
+            VALUES (?, ?, ?, ?, ?)""",
+            (status, json.dumps(lesson_ids), json.dumps(occurrence_ids), int(automatic), now),
         )
         self.db.commit()
-        return {"batch_id": cur.lastrowid, "status": "candidate_pending_offline_qlora", "lesson_ids": ids, "execution_started": False}
+        return {
+            "batch_id": cur.lastrowid,
+            "status": status,
+            "lesson_ids": lesson_ids,
+            "occurrence_ids": occurrence_ids,
+            "automatic": automatic,
+            "execution_started": False,
+        }
 
     def stats(self) -> dict[str, int]:
         total = self.db.execute("SELECT COUNT(*) FROM lessons").fetchone()[0]
         approved = self.db.execute("SELECT COUNT(*) FROM lessons WHERE approved_for_training = 1").fetchone()[0]
+        occurrences = self.db.execute("SELECT COUNT(*) FROM occurrences").fetchone()[0]
+        selected = self.db.execute("SELECT COUNT(*) FROM occurrences WHERE selected_for_training = 1").fetchone()[0]
         batches = self.db.execute("SELECT COUNT(*) FROM training_batches").fetchone()[0]
-        return {"lessons": int(total), "approved_for_training": int(approved), "training_batches": int(batches)}
+        return {
+            "lessons": int(total),
+            "approved_for_training": int(approved),
+            "occurrences": int(occurrences),
+            "selected_occurrences": int(selected),
+            "training_batches": int(batches),
+        }
