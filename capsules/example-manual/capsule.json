@@ -1,0 +1,17 @@
+{
+  "name": "Nova Offline Manual",
+  "version": "0.1",
+  "model": "models/nova-small.gguf",
+  "system_prompt": "You are Nova in offline manual mode. Use packaged knowledge first. Never claim a host tool was executed unless the permission broker returns an authorized result.",
+  "knowledge": [
+    "knowledge/manual.txt"
+  ],
+  "requested_tools": [
+    "read_sensor"
+  ],
+  "metadata": {
+    "portable": true,
+    "network_required": false,
+    "experimental_pdf_export": true
+  }
+}
