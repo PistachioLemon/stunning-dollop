@@ -63,6 +63,37 @@ DEFAULTS: dict[str, Any] = {
         "load_sensors_enabled": False,
         "cargo_vision_enabled": False,
     },
+    "edge_fabric": {
+        "journal_path": "./truck-data/events.jsonl",
+        "journal_fsync": True,
+        "heartbeat_timeout_seconds": 90,
+        "storage_low_watermark_mb": 1024,
+    },
+    "mqtt": {
+        "host": "requantai-server.local",
+        "port": 8883,
+        "qos": 1,
+        "keepalive_seconds": 30,
+        "session_expiry_seconds": 86400,
+        "message_expiry_seconds": 3600,
+        "tls_required": True,
+        "ca_file": "./secrets/ca.crt",
+        "cert_file": "./secrets/truck.crt",
+        "key_file": "./secrets/truck.key",
+    },
+    "security_guard": {
+        "certificate_fingerprint": "",
+        "topic_root": "requantai/trucks",
+        "deny_vehicle_bus_writes": True,
+    },
+    "recovery": {
+        "enabled": True,
+        "active_slot": "A",
+        "standby_slot": "B",
+        "current_version": 1,
+        "require_signed_manifest": True,
+        "health_timeout_seconds": 180,
+    },
 }
 
 
@@ -122,6 +153,28 @@ def validate_config(config: dict[str, Any]) -> None:
     if learning.get("auto_promote_model"):
         raise ValueError("model candidates require evaluation and operator promotion")
 
+    mqtt = config["mqtt"]
+    if not 1 <= int(mqtt["port"]) <= 65535:
+        raise ValueError("mqtt.port is invalid")
+    if mqtt["qos"] not in {1, 2}:
+        raise ValueError("mqtt.qos must be 1 or 2")
+    if mqtt["session_expiry_seconds"] < mqtt["message_expiry_seconds"]:
+        raise ValueError("mqtt session expiry must be >= message expiry")
+
+    fabric = config["edge_fabric"]
+    if fabric["heartbeat_timeout_seconds"] < 15:
+        raise ValueError("edge_fabric heartbeat timeout must be at least 15 seconds")
+    if fabric["storage_low_watermark_mb"] < 128:
+        raise ValueError("edge_fabric storage low watermark must be at least 128 MB")
+
+    recovery = config["recovery"]
+    if recovery["active_slot"] not in {"A", "B"} or recovery["standby_slot"] not in {"A", "B"}:
+        raise ValueError("recovery slots must be A or B")
+    if recovery["active_slot"] == recovery["standby_slot"]:
+        raise ValueError("recovery active and standby slots must differ")
+    if int(recovery["current_version"]) < 1:
+        raise ValueError("recovery current_version must be positive")
+
     if deployment["role"] == "truck_edge":
         if llm.get("enabled"):
             raise ValueError("truck_edge cannot enable local_llm; AI belongs on the server")
@@ -129,3 +182,9 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ValueError("truck_edge cannot run learning or training; AI belongs on the server")
         if runtime.get("accelerator") not in {"none", "auto"} or runtime.get("require_accelerator"):
             raise ValueError("truck_edge cannot require an AI accelerator")
+        if config["telemetry"].get("mqtt_enabled") and not mqtt.get("tls_required"):
+            raise ValueError("truck_edge MQTT requires TLS")
+        if not config["app"].get("simulation") and config["telemetry"].get("mqtt_enabled"):
+            fingerprint = str(config["security_guard"].get("certificate_fingerprint", "")).replace(":", "")
+            if len(fingerprint) != 64:
+                raise ValueError("production truck_edge requires a SHA-256 certificate fingerprint")
