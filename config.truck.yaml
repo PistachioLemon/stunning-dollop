@@ -33,3 +33,34 @@ telemetry:
   reefer_enabled: false
   load_sensors_enabled: false
   cargo_vision_enabled: false
+
+edge_fabric:
+  journal_path: ./truck-data/events.jsonl
+  journal_fsync: true
+  heartbeat_timeout_seconds: 90
+  storage_low_watermark_mb: 1024
+
+mqtt:
+  host: requantai-server.local
+  port: 8883
+  qos: 1
+  keepalive_seconds: 30
+  session_expiry_seconds: 86400
+  message_expiry_seconds: 3600
+  tls_required: true
+  ca_file: ./secrets/ca.crt
+  cert_file: ./secrets/truck.crt
+  key_file: ./secrets/truck.key
+
+security_guard:
+  certificate_fingerprint: ""
+  topic_root: requantai/trucks
+  deny_vehicle_bus_writes: true
+
+recovery:
+  enabled: true
+  active_slot: A
+  standby_slot: B
+  current_version: 1
+  require_signed_manifest: true
+  health_timeout_seconds: 180
