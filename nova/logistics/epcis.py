@@ -35,11 +35,18 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _business_step(value: Any) -> str | None:
+    raw = str(value or "").rstrip("/").split("/")[-1]
+    if raw.lower().startswith("bizstep-"):
+        raw = raw[len("BizStep-"):]
+    raw = raw.lower()
+    return BUSINESS_STEP_MAP.get(raw, raw.upper() or None)
+
+
 def epcis_to_freight(event: dict[str, Any]) -> FreightEvent:
     event_type = str(event.get("type", "ObjectEvent"))
     action = str(event.get("action", "OBSERVE")).upper()
-    biz_step_raw = str(event.get("bizStep", "")).rstrip("/").split("/")[-1].lower()
-    business_step = BUSINESS_STEP_MAP.get(biz_step_raw, biz_step_raw.upper() or None)
+    business_step = _business_step(event.get("bizStep"))
 
     internal_type = {
         ("AggregationEvent", "ADD"): "AGGREGATION",
