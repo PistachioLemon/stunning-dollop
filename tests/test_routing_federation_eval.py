@@ -27,15 +27,24 @@ def test_valhalla_regression_accepts_expected_route():
     assert evaluate_route(expectation, observation).passed is True
 
 
-def test_flower_candidate_only_wins_on_measured_improvement():
-    baseline = FederationRun("1.32.1", 20, 1500, 2, 8, True)
-    candidate = FederationRun("1.33", 17, 1400, 1, 9, True)
+def test_flower_134_candidate_wins_on_measured_recovery_improvement():
+    baseline = FederationRun("1.33", 20, 1500, 2, 8, True, 7, 4, 1, 6)
+    candidate = FederationRun("1.34", 18, 1450, 1, 9, True, 9, 5, 0, 8)
     comparison = compare_flower_runs(baseline, candidate)
-    assert comparison.preferred == "1.33"
+    assert comparison.preferred == "1.34"
+    assert "candidate has fewer persistence failures" in comparison.reasons
 
 
 def test_flower_holds_when_candidate_is_not_better():
-    baseline = FederationRun("1.32.1", 20, 1400, 1, 9, True)
-    candidate = FederationRun("1.33", 20, 1400, 1, 9, True)
+    baseline = FederationRun("1.33", 20, 1400, 1, 9, True, 8, 5, 0, 7)
+    candidate = FederationRun("1.34", 20, 1400, 1, 9, True, 8, 5, 0, 7)
     comparison = compare_flower_runs(baseline, candidate)
     assert comparison.preferred == "hold"
+
+
+def test_flower_134_cannot_win_with_persistence_regression():
+    baseline = FederationRun("1.33", 20, 1500, 2, 8, True, 8, 5, 0, 7)
+    candidate = FederationRun("1.34", 15, 1200, 0, 10, True, 10, 6, 1, 9)
+    comparison = compare_flower_runs(baseline, candidate)
+    assert comparison.preferred == "1.33"
+    assert any("recovery/reproducibility regression" in reason for reason in comparison.reasons)
