@@ -27,24 +27,42 @@ def test_valhalla_regression_accepts_expected_route():
     assert evaluate_route(expectation, observation).passed is True
 
 
-def test_flower_134_candidate_wins_on_measured_recovery_improvement():
-    baseline = FederationRun("1.33", 20, 1500, 2, 8, True, 7, 4, 1, 6)
-    candidate = FederationRun("1.34", 18, 1450, 1, 9, True, 9, 5, 0, 8)
+def test_flower_135_candidate_wins_on_runtime_recovery_improvement():
+    baseline = FederationRun(
+        "1.34", 20, 1500, 2, 8, True,
+        interrupted_rounds_recovered=8,
+        process_restarts_recovered=5,
+        persistence_failures=1,
+        rejoined_clients=7,
+        runtime_api_reconnect_failures=2,
+        wan_loss_recoveries=4,
+        runtime_api_bound_localhost=True,
+    )
+    candidate = FederationRun(
+        "1.35", 18, 1450, 1, 9, True,
+        interrupted_rounds_recovered=9,
+        process_restarts_recovered=6,
+        persistence_failures=0,
+        rejoined_clients=8,
+        runtime_api_reconnect_failures=0,
+        wan_loss_recoveries=6,
+        runtime_api_bound_localhost=True,
+    )
     comparison = compare_flower_runs(baseline, candidate)
-    assert comparison.preferred == "1.34"
-    assert "candidate has fewer persistence failures" in comparison.reasons
+    assert comparison.preferred == "1.35"
+    assert "candidate has fewer runtime API reconnect failures" in comparison.reasons
 
 
 def test_flower_holds_when_candidate_is_not_better():
-    baseline = FederationRun("1.33", 20, 1400, 1, 9, True, 8, 5, 0, 7)
-    candidate = FederationRun("1.34", 20, 1400, 1, 9, True, 8, 5, 0, 7)
+    baseline = FederationRun("1.34", 20, 1400, 1, 9, True, 8, 5, 0, 7, 0, 5, True)
+    candidate = FederationRun("1.35", 20, 1400, 1, 9, True, 8, 5, 0, 7, 0, 5, True)
     comparison = compare_flower_runs(baseline, candidate)
     assert comparison.preferred == "hold"
 
 
-def test_flower_134_cannot_win_with_persistence_regression():
-    baseline = FederationRun("1.33", 20, 1500, 2, 8, True, 8, 5, 0, 7)
-    candidate = FederationRun("1.34", 15, 1200, 0, 10, True, 10, 6, 1, 9)
+def test_flower_135_cannot_win_with_runtime_api_security_regression():
+    baseline = FederationRun("1.34", 20, 1500, 2, 8, True, 8, 5, 0, 7, 0, 5, True)
+    candidate = FederationRun("1.35", 15, 1200, 0, 10, True, 10, 6, 0, 9, 0, 6, False)
     comparison = compare_flower_runs(baseline, candidate)
-    assert comparison.preferred == "1.33"
-    assert any("recovery/reproducibility regression" in reason for reason in comparison.reasons)
+    assert comparison.preferred == "1.34"
+    assert any("recovery/security regression" in reason for reason in comparison.reasons)
