@@ -8,7 +8,11 @@ Candidate routing engine: Valhalla 3.8.3 on the mini-PC/server.
 
 Production and hardware-test manifests must identify the ARM64 container image by an immutable digest (`image@sha256:...`), not by `latest` and not by a mutable version tag alone.
 
-Do not invent or copy a digest from documentation. Record the digest only after pulling/inspecting the exact approved ARM64 image in the hardware-test environment, then preserve it in the release manifest and test evidence.
+Current ARM64 candidate digest from the package registry:
+
+`sha256:58c7dd3fb256f306b00c558fb76aea9fd4fb804edd831e2b4847c26511cca507`
+
+The software evaluation pin uses that exact digest. Hardware promotion still requires independently pulling/inspecting the exact ARM64 image on the intended mini-PC, confirming that the observed digest matches, and preserving that evidence through the Security Guard Artifact Trust Gate. A digest mismatch fails closed.
 
 ## Promotion gate
 
