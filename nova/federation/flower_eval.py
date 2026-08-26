@@ -17,6 +17,9 @@ class FederationRun:
     process_restarts_recovered: int = 0
     persistence_failures: int = 0
     rejoined_clients: int = 0
+    runtime_api_reconnect_failures: int = 0
+    wan_loss_recoveries: int = 0
+    runtime_api_bound_localhost: bool = True
 
 
 @dataclass(frozen=True)
@@ -39,6 +42,8 @@ def compare_flower_runs(baseline: FederationRun, candidate: FederationRun) -> Fe
         (candidate.process_restarts_recovered, baseline.process_restarts_recovered, "candidate recovers more process restarts", "baseline recovers more process restarts", "higher"),
         (candidate.persistence_failures, baseline.persistence_failures, "candidate has fewer persistence failures", "baseline has fewer persistence failures", "lower"),
         (candidate.rejoined_clients, baseline.rejoined_clients, "candidate restores more rejoining clients", "baseline restores more rejoining clients", "higher"),
+        (candidate.runtime_api_reconnect_failures, baseline.runtime_api_reconnect_failures, "candidate has fewer runtime API reconnect failures", "baseline has fewer runtime API reconnect failures", "lower"),
+        (candidate.wan_loss_recoveries, baseline.wan_loss_recoveries, "candidate recovers more WAN-loss scenarios", "baseline recovers more WAN-loss scenarios", "higher"),
     )
     for candidate_value, baseline_value, candidate_reason, baseline_reason, direction in metrics:
         candidate_better = candidate_value < baseline_value if direction == "lower" else candidate_value > baseline_value
@@ -57,16 +62,22 @@ def compare_flower_runs(baseline: FederationRun, candidate: FederationRun) -> Fe
         score_baseline += 1
         reasons.append("baseline is reproducible")
 
-    # Promotion is intentionally conservative: a candidate with a persistence
-    # regression, lost restart recovery, or lost reproducibility cannot win on
-    # aggregate score alone.
+    if candidate.runtime_api_bound_localhost and not baseline.runtime_api_bound_localhost:
+        score_candidate += 1
+        reasons.append("candidate keeps runtime API localhost-scoped")
+    elif baseline.runtime_api_bound_localhost and not candidate.runtime_api_bound_localhost:
+        score_baseline += 1
+        reasons.append("baseline keeps runtime API localhost-scoped")
+
     hard_regression = (
         candidate.persistence_failures > baseline.persistence_failures
         or candidate.process_restarts_recovered < baseline.process_restarts_recovered
+        or candidate.runtime_api_reconnect_failures > baseline.runtime_api_reconnect_failures
         or (baseline.reproducible and not candidate.reproducible)
+        or (baseline.runtime_api_bound_localhost and not candidate.runtime_api_bound_localhost)
     )
     if hard_regression:
-        reasons.append("candidate has a federation recovery/reproducibility regression")
+        reasons.append("candidate has a federation recovery/security regression")
         return FederationComparison(baseline.version, tuple(reasons))
 
     preferred = candidate.version if score_candidate > score_baseline else baseline.version
