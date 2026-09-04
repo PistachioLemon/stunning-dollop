@@ -25,7 +25,7 @@ class ModelEntry:
 
 
 class ModelRegistry:
-    """Read-only registry of approved RequantAi local GGUF models."""
+    """Read-only registry of approved RequantAi server-side GGUF models."""
 
     def __init__(self, path: str | Path | None = None):
         project_root = Path(__file__).resolve().parent.parent
@@ -59,6 +59,11 @@ class ModelRegistry:
         if not self._entries[self.default_model].approved:
             raise ValueError("Default model must be approved")
 
+    @staticmethod
+    def require_server_role(runtime_role: str) -> None:
+        if runtime_role != "server":
+            raise PermissionError("Local AI model execution is authorized only on deployment.role=server")
+
     def get(self, model_id: str | None = None) -> ModelEntry:
         key = model_id or self.default_model
         try:
@@ -72,14 +77,22 @@ class ModelRegistry:
     def all(self) -> list[ModelEntry]:
         return list(self._entries.values())
 
-    def install_target(self, model_id: str | None = None) -> Path:
+    def install_target(self, model_id: str | None = None, *, runtime_role: str) -> Path:
+        self.require_server_role(runtime_role)
         entry = self.get(model_id)
         return self.path.parent / entry.filename
 
-    def llama_command(self, model_id: str | None = None, *, executable: str = "llama-server") -> list[str]:
+    def llama_command(
+        self,
+        model_id: str | None = None,
+        *,
+        runtime_role: str,
+        executable: str = "llama-server",
+    ) -> list[str]:
+        self.require_server_role(runtime_role)
         entry = self.get(model_id)
         if not entry.approved:
             raise PermissionError(f"Model is not approved for RequantAi install: {entry.id}")
         if entry.llama_hf_ref:
             return [executable, "-hf", entry.llama_hf_ref]
-        return [executable, "-m", str(self.install_target(entry.id))]
+        return [executable, "-m", str(self.install_target(entry.id, runtime_role=runtime_role))]
