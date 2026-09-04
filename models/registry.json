@@ -14,9 +14,9 @@
       "license": "Apache-2.0",
       "parameters_billion": 0.36,
       "quantization": "Q4_K_M",
-      "role": "primary_trucklm_base",
+      "role": "server_trucklm_compact",
       "approved": true,
-      "notes": "Primary compact base for Requant TruckLM specialization. Keep the always-loaded truck brain small and use retrieval/tools for detailed current knowledge."
+      "notes": "Compact server-side Requant TruckLM base for low-latency dispatch and retrieval. It must not execute on the Raspberry Pi truck node."
     },
     {
       "id": "qwen2.5-1.5b-instruct-q4_k_m",
@@ -27,9 +27,9 @@
       "license": "Apache-2.0",
       "parameters_billion": 1.5,
       "quantization": "Q4_K_M",
-      "role": "benchmark_reference",
+      "role": "server_benchmark_reference",
       "approved": true,
-      "notes": "Quality benchmark and optional PC/HQ model; not preferred as the permanent truck-node model due to footprint."
+      "notes": "Server-side quality benchmark. Promotion requires an exact GGUF digest and the AI Runtime Authority gate; never run on the Pi truck node."
     },
     {
       "id": "smollm2-1.7b-instruct-q4_k_m",
@@ -40,9 +40,9 @@
       "license": "Apache-2.0",
       "parameters_billion": 1.7,
       "quantization": "Q4_K_M",
-      "role": "hq_optional",
+      "role": "server_hq_optional",
       "approved": false,
-      "notes": "Optional larger comparison model for HQ/desktop evaluation only."
+      "notes": "Optional larger server-side comparison model; requires explicit promotion approval before use."
     }
   ]
 }
