@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "default_model": "smollm2-360m-instruct-q4_k_m",
+  "models": [
+    {
+      "id": "smollm2-360m-instruct-q4_k_m",
+      "name": "SmolLM2 360M Instruct Q4_K_M",
+      "provider": "Unsloth / HuggingFaceTB",
+      "repo_id": "unsloth/SmolLM2-360M-Instruct-GGUF",
+      "filename": "SmolLM2-360M-Instruct-Q4_K_M.gguf",
+      "download_url": "https://huggingface.co/unsloth/SmolLM2-360M-Instruct-GGUF/resolve/main/SmolLM2-360M-Instruct-Q4_K_M.gguf?download=true",
+      "sha256": "16c7f1667fea34bacad196a57b548effcb37614db4ab5677a20c8c7b823b9e63",
+      "approx_size_bytes": 271000000,
+      "license": "Apache-2.0",
+      "parameters_billion": 0.36,
+      "quantization": "Q4_K_M",
+      "role": "server_trucklm_compact",
+      "approved": true,
+      "notes": "Compact server-side Requant TruckLM base for low-latency dispatch and retrieval. It must not execute on the Raspberry Pi truck node."
+    },
+    {
+      "id": "qwen2.5-1.5b-instruct-q4_k_m",
+      "name": "Qwen2.5 1.5B Instruct Q4_K_M",
+      "provider": "Qwen",
+      "repo_id": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+      "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      "license": "Apache-2.0",
+      "parameters_billion": 1.5,
+      "quantization": "Q4_K_M",
+      "role": "server_benchmark_reference",
+      "approved": true,
+      "notes": "Server-side quality benchmark. Promotion requires an exact GGUF digest and the AI Runtime Authority gate; never run on the Pi truck node."
+    },
+    {
+      "id": "smollm2-1.7b-instruct-q4_k_m",
+      "name": "SmolLM2 1.7B Instruct Q4_K_M",
+      "provider": "HuggingFaceTB",
+      "repo_id": "HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF",
+      "filename": "smollm2-1.7b-instruct-q4_k_m.gguf",
+      "license": "Apache-2.0",
+      "parameters_billion": 1.7,
+      "quantization": "Q4_K_M",
+      "role": "server_hq_optional",
+      "approved": false,
+      "notes": "Optional larger server-side comparison model; requires explicit promotion approval before use."
+    }
+  ]
+}

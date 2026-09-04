@@ -1,0 +1,9 @@
+{
+  "name": "RequantAi Offline Truck Manual",
+  "version": "0.1",
+  "model": "models/trucklm-small.gguf",
+  "system_prompt": "Use packaged trucking knowledge first. Never claim a host tool ran unless the Permission Broker returns a verified result.",
+  "knowledge": ["knowledge/manual.txt"],
+  "requested_tools": ["read_truck_sensor"],
+  "metadata": {"portable": true, "network_required": false}
+}

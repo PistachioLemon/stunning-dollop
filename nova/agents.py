@@ -1,72 +1,46 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Callable
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
 class Agent:
     key: str
     name: str
-    purpose: str
-    capabilities: tuple[str, ...]
+    responsibility: str
+    state: str = "ready"
+    requires_hardware: bool = False
 
 
 AGENTS = (
-    Agent("companion", "Companion", "Conversation, daily check-ins, and simple help", ("chat", "check_in")),
-    Agent("medication", "Medication", "Schedules, reminders, and taken/skipped records", ("list", "record")),
-    Agent("safety", "Safety", "SOS countdown, cancellation, and household safety", ("sos", "cancel")),
-    Agent("home", "Home", "Home Assistant lights, climate, scenes, and status", ("status", "control")),
-    Agent("family_notes", "Family Notes", "Record messages, memories, and caregiver notes", ("save", "list")),
-    Agent("librarian", "Librarian", "Find local instructions and explain stored information", ("search", "answer")),
-    Agent(
-        "package_guardian",
-        "Package Guardian",
-        "Verify expected deliveries and securely control the package locker",
-        ("verify_delivery", "status", "lock", "unlock"),
-    ),
+    Agent("dispatcher", "OpenClaw Dispatcher", "Ranks loads, routes work, and coordinates fleet decisions"),
+    Agent("trucklm", "TruckLM", "Local trucking language, classification, and tool selection"),
+    Agent("telemetry", "Truck Telemetry", "GPS, CAN, OBD-II, reefer, load-sensor, and MQTT state", requires_hardware=True),
+    Agent("cargo_vision", "Cargo Vision", "Load verification and chain-of-custody evidence", requires_hardware=True),
+    Agent("compliance", "HOS and Compliance", "Hours-of-service and operating constraint checks"),
+    Agent("permission_broker", "Permission Broker", "Default-deny tool authorization and restricted-action approval"),
+    Agent("librarian", "AI Librarian", "Operational knowledge and bounded retrieval memory"),
+    Agent("repair_librarian", "Repair Librarian", "Trusted repair retrieval and outcome memory"),
+    Agent("self_healing", "System Recovery", "Diagnostics, sandboxed repairs, verification, and rollback"),
+    Agent("learning", "Operational Learning", "Selected events, post-drive review, and acknowledged training batches"),
 )
 
 
 class AgentRouter:
-    def __init__(self, handlers: dict[str, Callable[[str], dict]] | None = None):
-        self.handlers = handlers or {}
-
-    @staticmethod
-    def classify(text: str) -> str:
-        normalized = text.lower()
-        if any(word in normalized for word in ("medicine", "medication", "pill", "dose")):
-            return "medication"
-        if any(word in normalized for word in ("help", "emergency", "sos", "fell", "fall")):
-            return "safety"
-        if any(word in normalized for word in ("light", "thermostat", "temperature", "home")):
-            return "home"
-        if any(word in normalized for word in ("remember", "note", "message for", "family")):
-            return "family_notes"
-        if any(
-            phrase in normalized
-            for phrase in ("package", "delivery", "courier", "locker", "tracking")
-        ):
-            return "package_guardian"
-        if any(word in normalized for word in ("find", "document", "instructions", "what does")):
-            return "librarian"
-        return "companion"
+    ROUTES = {
+        "load": "dispatcher", "bid": "dispatcher", "route": "dispatcher", "profit": "dispatcher",
+        "gps": "telemetry", "obd": "telemetry", "can": "telemetry", "reefer": "telemetry", "mqtt": "telemetry",
+        "cargo": "cargo_vision", "securement": "cargo_vision", "camera": "cargo_vision",
+        "hos": "compliance", "compliance": "compliance", "repair": "self_healing", "fault": "self_healing",
+        "manual": "librarian", "learn": "learning", "training": "learning",
+    }
 
     def route(self, text: str) -> dict:
-        key = self.classify(text)
-        handler = self.handlers.get(key)
-        if handler:
-            return {"agent": key, **handler(text)}
-        responses = {
-            "companion": "I’m right here. What would you like to do?",
-            "medication": "I can show the medication schedule or record a dose.",
-            "safety": "I can start the SOS countdown. Say or press SOS to continue.",
-            "home": "Home controls are ready when Home Assistant is connected.",
-            "family_notes": "I can save that as a family note.",
-            "librarian": "I can search Nova’s local notes and instructions.",
-            "package_guardian": (
-                "I can check expected deliveries and show the locker status. "
-                "Lock and unlock actions require authorization."
-            ),
-        }
-        return {"agent": key, "reply": responses[key], "action_required": False}
+        normalized = text.casefold()
+        agent = next((value for word, value in self.ROUTES.items() if word in normalized), "trucklm")
+        selected = next(item for item in AGENTS if item.key == agent)
+        return {"agent": agent, "reply": f"{selected.name} received the request.", "mode": "deterministic_fallback"}
+
+
+def agent_manifest() -> list[dict]:
+    return [asdict(agent) for agent in AGENTS]

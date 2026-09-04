@@ -1,0 +1,66 @@
+app:
+  name: RequantAi Truck Node
+  host: 127.0.0.1
+  port: 8790
+  timezone: America/Los_Angeles
+  simulation: true
+  data_dir: ./truck-data
+
+deployment:
+  role: truck_edge
+  node_id: truck-pi-001
+  server_url: http://requantai-server.local:8787
+
+runtime:
+  profile: cpu_minimum
+  accelerator: none
+  require_accelerator: false
+
+local_llm:
+  enabled: false
+
+learning:
+  enabled: false
+  auto_training_enabled: false
+  auto_promote_model: false
+
+telemetry:
+  simulation: true
+  mqtt_enabled: false
+  gps_enabled: true
+  can_enabled: false
+  obd_enabled: false
+  reefer_enabled: false
+  load_sensors_enabled: false
+  cargo_vision_enabled: false
+
+edge_fabric:
+  journal_path: ./truck-data/events.jsonl
+  journal_fsync: true
+  heartbeat_timeout_seconds: 90
+  storage_low_watermark_mb: 1024
+
+mqtt:
+  host: requantai-server.local
+  port: 8883
+  qos: 1
+  keepalive_seconds: 30
+  session_expiry_seconds: 86400
+  message_expiry_seconds: 3600
+  tls_required: true
+  ca_file: ./secrets/ca.crt
+  cert_file: ./secrets/truck.crt
+  key_file: ./secrets/truck.key
+
+security_guard:
+  certificate_fingerprint: ""
+  topic_root: requantai/trucks
+  deny_vehicle_bus_writes: true
+
+recovery:
+  enabled: true
+  active_slot: A
+  standby_slot: B
+  current_version: 1
+  require_signed_manifest: true
+  health_timeout_seconds: 180

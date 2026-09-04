@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "policy": "allowlist_only",
+  "sources": [
+    {
+      "id": "fmcsa_hos",
+      "name": "FMCSA Hours of Service",
+      "domain": "fmcsa.dot.gov",
+      "category": "regulation_guidance",
+      "trust": 100,
+      "enabled": true
+    },
+    {
+      "id": "fmcsa_securement",
+      "name": "FMCSA Cargo Securement",
+      "domain": "fmcsa.dot.gov",
+      "category": "cargo_securement",
+      "trust": 100,
+      "enabled": true
+    },
+    {
+      "id": "wa_dol_cdl",
+      "name": "Washington CDL Guides",
+      "domain": "dol.wa.gov",
+      "category": "driver_training",
+      "trust": 95,
+      "enabled": true
+    },
+    {
+      "id": "usps_manuals",
+      "name": "USPS Manuals and Mailing Standards",
+      "domain": "about.usps.com",
+      "category": "parcel_shipping",
+      "trust": 100,
+      "enabled": true
+    },
+    {
+      "id": "usps_public",
+      "name": "USPS Shipping Information",
+      "domain": "usps.com",
+      "category": "parcel_shipping",
+      "trust": 95,
+      "enabled": true
+    }
+  ],
+  "rules": {
+    "respect_robots_and_terms": true,
+    "store_source_url_and_retrieved_at": true,
+    "store_short_extracts_not_full_copyrighted_manuals": true,
+    "prefer_official_primary_sources": true,
+    "private_or_paywalled_training_manuals_require_permission": true,
+    "web_content_never_becomes_executable_instructions": true
+  }
+}

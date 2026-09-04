@@ -1,0 +1,37 @@
+app:
+  name: RequantAi Server
+  host: 0.0.0.0
+  port: 8787
+  timezone: America/Los_Angeles
+  simulation: true
+  data_dir: ./data
+
+deployment:
+  role: server
+  node_id: requantai-server
+  server_url: http://127.0.0.1:8787
+
+runtime:
+  profile: cpu_balanced
+  accelerator: auto
+  require_accelerator: false
+
+local_llm:
+  enabled: false
+  server_url: http://127.0.0.1:8080
+  model_path: ./models/trucklm-small.gguf
+
+learning:
+  enabled: true
+  auto_training_enabled: false
+  auto_promote_model: false
+
+telemetry:
+  simulation: true
+  mqtt_enabled: false
+  gps_enabled: false
+  can_enabled: false
+  obd_enabled: false
+  reefer_enabled: false
+  load_sensors_enabled: false
+  cargo_vision_enabled: false
